@@ -1,4 +1,4 @@
-/// HealthKit 걸음 샘플 하나. 시각은 네이티브가 epoch ms로 넘김.
+/// 걸음 샘플 하나(iOS HealthKit, Android Health Connect). 시각은 네이티브가 epoch ms로 넘김.
 class HealthStepSample {
   const HealthStepSample({
     required this.uuid,
@@ -9,6 +9,7 @@ class HealthStepSample {
     required this.sourceBundleId,
     this.deviceModel,
     this.deviceName,
+    this.deviceType,
   });
 
   factory HealthStepSample.fromMap(Map<Object?, Object?> map) =>
@@ -21,6 +22,7 @@ class HealthStepSample {
         sourceBundleId: map['sourceBundleId'] as String,
         deviceModel: map['deviceModel'] as String?,
         deviceName: map['deviceName'] as String?,
+        deviceType: map['deviceType'] as String?,
       );
 
   final String uuid;
@@ -32,8 +34,11 @@ class HealthStepSample {
   final String? deviceModel;
   final String? deviceName;
 
-  // 결정: HKDevice.model이 "Watch"면 워치 샘플로 봄 [불확실: 실기기 값 확인 전]
-  bool get isWatch => deviceModel == 'Watch';
+  /// Android Health Connect의 기기 종류(watch, phone 등). iOS는 null.
+  final String? deviceType;
+
+  // 결정: iOS는 HKDevice.model이 "Watch", Android는 기기 종류가 watch면 워치 샘플로 봄 [불확실: 실기기 값 확인 전]
+  bool get isWatch => deviceModel == 'Watch' || deviceType == 'watch';
 }
 
 /// CoreMotion 걸음을 일정 간격으로 묶은 칸.

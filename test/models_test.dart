@@ -32,6 +32,22 @@ void main() {
     );
   });
 
+  test('Android는 기기 종류(deviceType)로 워치를 구분한다', () {
+    final s = HealthStepSample.fromMap({
+      ...sample(t10, t10, 1, 'SM-R960'),
+      'deviceType': 'watch',
+    });
+    expect(s.deviceType, 'watch');
+    expect(s.isWatch, isTrue);
+    expect(
+      HealthStepSample.fromMap({
+        ...sample(t10, t10, 1, 'SM-S948N'),
+        'deviceType': 'phone',
+      }).isWatch,
+      isFalse,
+    );
+  });
+
   test('StepBucket.fromMap', () {
     final b = StepBucket.fromMap({
       'start': t10.millisecondsSinceEpoch,

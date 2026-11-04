@@ -160,7 +160,7 @@ class _SamplesPageState extends State<SamplesPage> {
                   '${_time(s.start)} ~ ${_time(s.end)}   ${s.count}보',
                 ),
                 subtitle: Text(
-                  '${s.deviceModel ?? '기기 정보 없음'} / ${s.sourceName}',
+                  '${[?s.deviceType, s.deviceModel ?? '기기 정보 없음'].join(' ')} / ${s.sourceName}',
                 ),
               ),
           ],
