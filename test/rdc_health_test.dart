@@ -4,9 +4,9 @@ import 'package:rdc_health/rdc_health_platform_interface.dart';
 import 'package:rdc_health/rdc_health_method_channel.dart';
 import 'package:plugin_platform_interface/plugin_platform_interface.dart';
 
-class MockRdcHealthPlatform
-    with MockPlatformInterfaceMixin
-    implements RdcHealthPlatform {
+// 결정: implements 대신 extends. 플랫폼 메서드가 늘어나도 이 Mock을 고치지 않아도 됨
+class MockRdcHealthPlatform extends RdcHealthPlatform
+    with MockPlatformInterfaceMixin {
   @override
   Future<String?> getPlatformVersion() => Future.value('42');
 }
