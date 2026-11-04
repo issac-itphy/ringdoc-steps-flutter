@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
 
@@ -36,5 +38,51 @@ class MethodChannelRdcHealth extends RdcHealthPlatform {
       for (final map in maps ?? const <Map<Object?, Object?>>[])
         HealthStepSample.fromMap(map),
     ];
+  }
+
+  @override
+  Future<void> writeTestSteps(int count) =>
+      methodChannel.invokeMethod<void>('writeTestSteps', {'count': count});
+
+  @override
+  Future<void> enableBackgroundDelivery() =>
+      methodChannel.invokeMethod<void>('enableBackgroundDelivery');
+
+  @override
+  Future<List<HealthLogEntry>> readLog() async {
+    final maps = await methodChannel.invokeListMethod<Map<Object?, Object?>>(
+      'readLog',
+    );
+    return [
+      for (final map in maps ?? const <Map<Object?, Object?>>[])
+        HealthLogEntry.fromMap(map),
+    ];
+  }
+
+  @override
+  Future<void> appendLog(String event) =>
+      methodChannel.invokeMethod<void>('appendLog', {'event': event});
+
+  @override
+  Future<void> clearLog() => methodChannel.invokeMethod<void>('clearLog');
+
+  final _stepSamples = StreamController<List<HealthStepSample>>.broadcast();
+
+  // 결정: 네이티브 → Dart 호출 처리기는 스트림을 처음 볼 때 단다. 생성자에서 달면 바인딩 초기화 전 생성 시 실패
+  @override
+  Stream<List<HealthStepSample>> get stepSampleEvents {
+    methodChannel.setMethodCallHandler(_onNativeCall);
+    return _stepSamples.stream;
+  }
+
+  Future<Object?> _onNativeCall(MethodCall call) async {
+    if (call.method == 'onStepSamples') {
+      final maps = (call.arguments as Map)['samples'] as List;
+      _stepSamples.add([
+        for (final map in maps)
+          HealthStepSample.fromMap(map as Map<Object?, Object?>),
+      ]);
+    }
+    return null;
   }
 }

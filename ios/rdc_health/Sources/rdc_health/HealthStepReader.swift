@@ -35,6 +35,20 @@ final class HealthStepReader {
     store.execute(query)
   }
 
+  /// 샘플 앱 시험용: 지금부터 1분 전까지 걸음 샘플 하나를 쓴다. 정식화(G1) 때 제거.
+  func writeTestSteps(count: Int, completion: @escaping (Result<Bool, Error>) -> Void) {
+    let end = Date()
+    let sample = HKQuantitySample(
+      type: stepType,
+      quantity: HKQuantity(unit: .count(), doubleValue: Double(count)),
+      start: end.addingTimeInterval(-60),
+      end: end
+    )
+    store.save(sample) { ok, error in
+      if let error { completion(.failure(error)) } else { completion(.success(ok)) }
+    }
+  }
+
   static func toMap(_ sample: HKQuantitySample) -> [String: Any] {
     let source = sample.sourceRevision.source
     return [

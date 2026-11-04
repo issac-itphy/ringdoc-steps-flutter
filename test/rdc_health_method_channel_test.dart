@@ -23,8 +23,20 @@ void main() {
               return [
                 sample(t10, t10.add(const Duration(minutes: 5)), 120, 'Watch'),
               ];
+            case 'readLog':
+              return [
+                {
+                  'at': t10.millisecondsSinceEpoch,
+                  'event': 'observer_fired',
+                  'appState': 'background',
+                  'protectedData': false,
+                  'detail': {'newSamples': 1},
+                },
+              ];
+            case 'getPlatformVersion':
+              return '42';
           }
-          return '42';
+          return null;
         });
   });
 
@@ -50,5 +62,42 @@ void main() {
     });
     expect(samples.single.count, 120);
     expect(samples.single.isWatch, isTrue);
+  });
+
+  test('writeTestSteps는 걸음 수를 보낸다', () async {
+    await platform.writeTestSteps(50);
+    expect(calls.single.method, 'writeTestSteps');
+    expect(calls.single.arguments, {'count': 50});
+  });
+
+  test('appendLog는 이벤트 이름을 보낸다', () async {
+    await platform.appendLog('dart_main');
+    expect(calls.single.arguments, {'event': 'dart_main'});
+  });
+
+  test('readLog는 Map을 HealthLogEntry로 바꾼다', () async {
+    final entry = (await platform.readLog()).single;
+    expect(entry.at, t10);
+    expect(entry.event, 'observer_fired');
+    expect(entry.appState, 'background');
+    expect(entry.protectedData, isFalse);
+    expect(entry.detail['newSamples'], 1);
+  });
+
+  test('onStepSamples를 받으면 stepSampleEvents가 샘플을 내보낸다', () async {
+    final next = platform.stepSampleEvents.first;
+    await TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+        .handlePlatformMessage(
+          'rdc_health',
+          const StandardMethodCodec().encodeMethodCall(
+            MethodCall('onStepSamples', {
+              'samples': [
+                sample(t10, t10.add(const Duration(minutes: 1)), 50, null),
+              ],
+            }),
+          ),
+          (_) {},
+        );
+    expect((await next).single.count, 50);
   });
 }

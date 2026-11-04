@@ -6,6 +6,10 @@ public class RdcHealthPlugin: NSObject, FlutterPlugin {
     let channel = FlutterMethodChannel(name: "rdc_health", binaryMessenger: registrar.messenger())
     let instance = RdcHealthPlugin()
     registrar.addMethodCallDelegate(instance, channel: channel)
+    HealthSpikeObserver.onSamples = { samples in
+      channel.invokeMethod("onStepSamples", arguments: ["samples": samples])
+    }
+    HealthSpikeLog.append(event: "plugin_registered")
   }
 
   public func handle(_ call: FlutterMethodCall, result: @escaping FlutterResult) {
@@ -24,6 +28,21 @@ public class RdcHealthPlugin: NSObject, FlutterPlugin {
         return
       }
       reader.samples(from: Self.date(from), to: Self.date(to)) { Self.reply(result, $0) }
+    case "writeTestSteps":
+      let count = (call.arguments as? [String: Any])?["count"] as? Int ?? 50
+      reader.writeTestSteps(count: count) { outcome in Self.reply(result, outcome.map { _ in nil as Any? }) }
+    case "enableBackgroundDelivery":
+      HealthSpikeObserver.enable { error in
+        Self.reply(result, error.map { Result<Any?, Error>.failure($0) } ?? .success(nil))
+      }
+    case "readLog":
+      result(HealthSpikeLog.read())
+    case "appendLog":
+      let event = (call.arguments as? [String: Any])?["event"] as? String ?? "unknown"
+      HealthSpikeLog.append(event: event) { result(nil) }
+    case "clearLog":
+      HealthSpikeLog.clear()
+      result(nil)
     default:
       result(FlutterMethodNotImplemented)
     }

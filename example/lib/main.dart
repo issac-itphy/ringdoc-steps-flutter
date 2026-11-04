@@ -1,7 +1,14 @@
+import 'dart:async';
+import 'dart:convert';
+
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:rdc_health/rdc_health.dart';
 
-void main() {
+Future<void> main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+  // 백그라운드 실행 때 Dart까지 도는지 기록으로 확인
+  await RdcHealth().appendLog('dart_main');
   runApp(const MyApp());
 }
 
@@ -12,7 +19,7 @@ class MyApp extends StatelessWidget {
   Widget build(BuildContext context) => const MaterialApp(home: SamplesPage());
 }
 
-/// HealthKit 걸음 샘플을 기기와 출처별로 보는 시험 화면.
+/// HealthKit 걸음 샘플을 기기와 출처별로 보고, 새 걸음 이벤트가 Flutter로 오는지 보는 시험 화면.
 class SamplesPage extends StatefulWidget {
   const SamplesPage({super.key});
 
@@ -22,32 +29,43 @@ class SamplesPage extends StatefulWidget {
 
 class _SamplesPageState extends State<SamplesPage> {
   final _health = RdcHealth();
+  final _events = <(DateTime, HealthStepSample)>[];
+  StreamSubscription<List<HealthStepSample>>? _subscription;
   Duration _range = const Duration(hours: 3);
   List<HealthStepSample>? _samples;
-  String? _error;
+  String? _message;
 
-  Future<void> _requestAuthorization() async {
-    try {
-      await _health.requestHealthKitAuthorization();
-    } catch (e) {
-      setState(() => _error = '$e');
-      return;
-    }
-    await _load();
+  @override
+  void initState() {
+    super.initState();
+    _subscription = _health.stepSampleEvents.listen((samples) {
+      final now = DateTime.now();
+      setState(() => _events.insertAll(0, [for (final s in samples) (now, s)]));
+    });
   }
 
-  Future<void> _load() async {
+  @override
+  void dispose() {
+    _subscription?.cancel();
+    super.dispose();
+  }
+
+  Future<void> _run(Future<void> Function() action) async {
+    try {
+      await action();
+    } catch (e) {
+      setState(() => _message = '$e');
+    }
+  }
+
+  Future<void> _load() => _run(() async {
     final to = DateTime.now();
-    try {
-      final samples = await _health.healthStepSamples(to.subtract(_range), to);
-      setState(() {
-        _samples = samples;
-        _error = null;
-      });
-    } catch (e) {
-      setState(() => _error = '$e');
-    }
-  }
+    final samples = await _health.healthStepSamples(to.subtract(_range), to);
+    setState(() {
+      _samples = samples;
+      _message = null;
+    });
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -68,10 +86,30 @@ class _SamplesPageState extends State<SamplesPage> {
             runSpacing: 8,
             children: [
               FilledButton(
-                onPressed: _requestAuthorization,
+                onPressed: () => _run(() async {
+                  await _health.requestHealthKitAuthorization();
+                  await _load();
+                }),
                 child: const Text('권한 요청'),
               ),
               OutlinedButton(onPressed: _load, child: const Text('새로고침')),
+              OutlinedButton(
+                onPressed: () => _run(() async {
+                  await _health.enableBackgroundDelivery();
+                  setState(() => _message = '백그라운드 전달을 켰습니다');
+                }),
+                child: const Text('백그라운드 전달 켜기'),
+              ),
+              OutlinedButton(
+                onPressed: () => _run(() => _health.writeTestSteps(50)),
+                child: const Text('테스트 걸음 넣기'),
+              ),
+              OutlinedButton(
+                onPressed: () => Navigator.of(context).push(
+                  MaterialPageRoute<void>(builder: (_) => const LogPage()),
+                ),
+                child: const Text('기록 보기'),
+              ),
               SegmentedButton<Duration>(
                 segments: const [
                   ButtonSegment(
@@ -89,8 +127,19 @@ class _SamplesPageState extends State<SamplesPage> {
             ],
           ),
           const SizedBox(height: 16),
-          if (_error != null)
-            Text(_error!, style: const TextStyle(color: Colors.red)),
+          if (_message != null) Text(_message!),
+          Text('실시간 이벤트 (${_events.length})', style: _heading),
+          if (_events.isEmpty) const Text('아직 받은 이벤트 없음'),
+          for (final (received, s) in _events.take(20))
+            ListTile(
+              dense: true,
+              title: Text('${s.count}보   받은 시각 ${_time(received)}'),
+              subtitle: Text(
+                '${_time(s.start)} ~ ${_time(s.end)} / ${s.sourceName}',
+              ),
+            ),
+          const Divider(),
+          Text('샘플', style: _heading),
           if (samples != null) ...[
             Text(
               '기기 모델별 샘플 수: '
@@ -114,6 +163,90 @@ class _SamplesPageState extends State<SamplesPage> {
   }
 }
 
-String _time(DateTime t) =>
-    '${t.month}/${t.day} ${t.hour.toString().padLeft(2, '0')}:'
-    '${t.minute.toString().padLeft(2, '0')}';
+/// 네이티브가 기기 안 파일에 남긴 실행 기록.
+class LogPage extends StatefulWidget {
+  const LogPage({super.key});
+
+  @override
+  State<LogPage> createState() => _LogPageState();
+}
+
+class _LogPageState extends State<LogPage> {
+  final _health = RdcHealth();
+  List<HealthLogEntry> _entries = const [];
+
+  @override
+  void initState() {
+    super.initState();
+    _load();
+  }
+
+  Future<void> _load() async {
+    final entries = await _health.readLog();
+    setState(() => _entries = entries.reversed.toList());
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(
+        title: const Text('기록'),
+        actions: [
+          IconButton(
+            tooltip: '새로고침',
+            icon: const Icon(Icons.refresh),
+            onPressed: _load,
+          ),
+          IconButton(
+            tooltip: '기록 복사',
+            icon: const Icon(Icons.copy),
+            onPressed: () => Clipboard.setData(
+              ClipboardData(text: _entries.map(_line).join('\n')),
+            ),
+          ),
+          IconButton(
+            tooltip: '기록 지우기',
+            icon: const Icon(Icons.delete_outline),
+            onPressed: () async {
+              await _health.clearLog();
+              await _load();
+            },
+          ),
+        ],
+      ),
+      body: _entries.isEmpty
+          ? const Center(child: Text('기록 없음'))
+          : ListView(
+              children: [
+                for (final e in _entries)
+                  ListTile(
+                    dense: true,
+                    title: Text(
+                      '${_time(e.at, seconds: true)}  ${e.event}  '
+                      '${e.appState}${e.protectedData ? '' : '  잠금'}',
+                    ),
+                    subtitle: e.detail.isEmpty
+                        ? null
+                        : Text(
+                            jsonEncode(e.detail),
+                            maxLines: 3,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                  ),
+              ],
+            ),
+    );
+  }
+}
+
+String _line(HealthLogEntry e) =>
+    '${e.at.toIso8601String()} ${e.event} ${e.appState} '
+    'protectedData=${e.protectedData} ${jsonEncode(e.detail)}';
+
+const _heading = TextStyle(fontWeight: FontWeight.bold);
+
+String _time(DateTime t, {bool seconds = false}) {
+  String two(int n) => n.toString().padLeft(2, '0');
+  final hm = '${t.month}/${t.day} ${two(t.hour)}:${two(t.minute)}';
+  return seconds ? '$hm:${two(t.second)}' : hm;
+}

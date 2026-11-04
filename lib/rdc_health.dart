@@ -16,4 +16,21 @@ class RdcHealth {
     DateTime from,
     DateTime to,
   ) => RdcHealthPlatform.instance.healthStepSamples(from, to);
+
+  Future<void> writeTestSteps(int count) =>
+      RdcHealthPlatform.instance.writeTestSteps(count);
+
+  Future<void> enableBackgroundDelivery() =>
+      RdcHealthPlatform.instance.enableBackgroundDelivery();
+
+  Future<List<HealthLogEntry>> readLog() =>
+      RdcHealthPlatform.instance.readLog();
+
+  Future<void> appendLog(String event) =>
+      RdcHealthPlatform.instance.appendLog(event);
+
+  Future<void> clearLog() => RdcHealthPlatform.instance.clearLog();
+
+  Stream<List<HealthStepSample>> get stepSampleEvents =>
+      RdcHealthPlatform.instance.stepSampleEvents;
 }

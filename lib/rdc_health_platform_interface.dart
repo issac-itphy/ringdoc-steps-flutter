@@ -39,4 +39,33 @@ abstract class RdcHealthPlatform extends PlatformInterface {
   Future<List<HealthStepSample>> healthStepSamples(DateTime from, DateTime to) {
     throw UnimplementedError('healthStepSamples() has not been implemented.');
   }
+
+  /// 샘플 앱 시험용: 지금부터 1분 전까지 걸음 샘플 하나를 HealthKit에 쓴다.
+  Future<void> writeTestSteps(int count) {
+    throw UnimplementedError('writeTestSteps() has not been implemented.');
+  }
+
+  /// 걸음 관찰 쿼리와 백그라운드 전달을 켠다. 다음 앱 시작부터 자동으로 다시 켜진다.
+  Future<void> enableBackgroundDelivery() {
+    throw UnimplementedError(
+      'enableBackgroundDelivery() has not been implemented.',
+    );
+  }
+
+  Future<List<HealthLogEntry>> readLog() {
+    throw UnimplementedError('readLog() has not been implemented.');
+  }
+
+  Future<void> appendLog(String event) {
+    throw UnimplementedError('appendLog() has not been implemented.');
+  }
+
+  Future<void> clearLog() {
+    throw UnimplementedError('clearLog() has not been implemented.');
+  }
+
+  /// 관찰 쿼리가 새 걸음 샘플을 받을 때마다 내보낸다. Flutter 엔진이 떠 있을 때만 온다.
+  Stream<List<HealthStepSample>> get stepSampleEvents {
+    throw UnimplementedError('stepSampleEvents has not been implemented.');
+  }
 }

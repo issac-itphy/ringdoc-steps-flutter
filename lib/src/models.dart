@@ -54,3 +54,32 @@ class StepBucket {
   final DateTime end;
   final int steps;
 }
+
+/// 네이티브가 기기 안 파일에 남긴 실행 기록 한 줄.
+class HealthLogEntry {
+  const HealthLogEntry({
+    required this.at,
+    required this.event,
+    required this.appState,
+    required this.protectedData,
+    required this.detail,
+  });
+
+  factory HealthLogEntry.fromMap(Map<Object?, Object?> map) => HealthLogEntry(
+    at: DateTime.fromMillisecondsSinceEpoch(map['at'] as int),
+    event: map['event'] as String,
+    appState: map['appState'] as String,
+    protectedData: map['protectedData'] as bool,
+    detail: Map<String, Object?>.from(map['detail'] as Map),
+  );
+
+  final DateTime at;
+  final String event;
+
+  /// active, inactive, background
+  final String appState;
+
+  /// false면 기기가 잠겨 HealthKit을 읽을 수 없는 상태.
+  final bool protectedData;
+  final Map<String, Object?> detail;
+}
