@@ -5,10 +5,12 @@ import android.content.Intent
 import android.os.Build
 import androidx.health.connect.client.HealthConnectClient
 import androidx.health.connect.client.PermissionController
+import androidx.health.connect.client.changes.UpsertionChange
 import androidx.health.connect.client.permission.HealthPermission
 import androidx.health.connect.client.records.StepsRecord
 import androidx.health.connect.client.records.metadata.Device
 import androidx.health.connect.client.records.metadata.Metadata
+import androidx.health.connect.client.request.ChangesTokenRequest
 import androidx.health.connect.client.request.ReadRecordsRequest
 import androidx.health.connect.client.time.TimeRangeFilter
 import io.flutter.embedding.engine.plugins.FlutterPlugin
@@ -21,9 +23,14 @@ import io.flutter.plugin.common.MethodChannel.Result
 import io.flutter.plugin.common.PluginRegistry
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 import java.time.Instant
 import java.time.ZoneId
 
@@ -39,6 +46,9 @@ class RdcHealthPlugin :
     private var activityBinding: ActivityPluginBinding? = null
     private var pendingAuthorization: Result? = null
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Main)
+    private var pollJob: Job? = null
+    private val changesLock = Mutex()
+    private val prefs get() = context!!.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
 
     // 결정: registerForActivityResult 대신 플러그인 결과 콜백으로 받는다. 앱의 MainActivity(FlutterActivity)를 바꾸지 않아도 됨
     private val permissionContract by lazy { PermissionController.createRequestPermissionResultContract() }
@@ -47,6 +57,8 @@ class RdcHealthPlugin :
         context = binding.applicationContext
         channel = MethodChannel(binding.binaryMessenger, "rdc_health")
         channel.setMethodCallHandler(this)
+        // iOS bootstrap처럼, 켜 둔 적이 있으면 엔진이 붙을 때 다시 감지를 시작한다
+        if (prefs.getBoolean(OBSERVING_KEY, false)) startPolling()
     }
 
     override fun onMethodCall(
@@ -83,6 +95,14 @@ class RdcHealthPlugin :
                         )
                     )
                 )
+                // 폴링을 기다리지 않고 바로 확인해 실시간 칸에 곧장 보이게 한다
+                if (prefs.getBoolean(OBSERVING_KEY, false)) deliverChanges(client)
+                result.success(null)
+            }
+            "enableBackgroundDelivery" -> withClient(result) { client ->
+                if (prefs.getString(TOKEN_KEY, null) == null) saveToken(newToken(client))
+                prefs.edit().putBoolean(OBSERVING_KEY, true).apply()
+                startPolling()
                 result.success(null)
             }
             // CoreMotion 비교는 iOS 전용. 비교 화면이 Android에서도 열리도록 빈 값을 돌려준다
@@ -153,6 +173,47 @@ class RdcHealthPlugin :
         }
     }
 
+    // shortcut: 앱(엔진)이 떠 있을 때만 10초마다 변경 내역을 가져온다. 꺼져 있을 때 읽기는 S9e(WorkManager)
+    private fun startPolling() {
+        if (pollJob?.isActive == true) return
+        val ctx = context ?: return
+        if (HealthConnectClient.getSdkStatus(ctx) != HealthConnectClient.SDK_AVAILABLE) return
+        val client = HealthConnectClient.getOrCreate(ctx)
+        pollJob = scope.launch {
+            while (isActive) {
+                // 권한이 꺼졌거나 일시 오류여도 다음 주기에 다시 시도
+                runCatching { deliverChanges(client) }
+                delay(POLL_MS)
+            }
+        }
+    }
+
+    /** 변경 토큰 뒤로 새로 들어온 걸음을 Flutter로 보낸다. 폴링과 쓰기 직후 확인이 겹치지 않게 잠근다. */
+    private suspend fun deliverChanges(client: HealthConnectClient) = changesLock.withLock {
+        var token = prefs.getString(TOKEN_KEY, null) ?: return@withLock
+        val samples = mutableListOf<Map<String, Any?>>()
+        do {
+            val response = client.getChanges(token)
+            if (response.changesTokenExpired) {
+                // shortcut: 만료(30일 미사용)되면 새 토큰부터 다시 시작해 그 사이 걸음은 놓친다, 정식화(G1) 때 마지막 읽은 시각부터 다시 읽기
+                saveToken(newToken(client))
+                return@withLock
+            }
+            response.changes.filterIsInstance<UpsertionChange>()
+                .mapNotNull { it.record as? StepsRecord }
+                .mapTo(samples, ::toMap)
+            token = response.nextChangesToken
+        } while (response.hasMore)
+        saveToken(token)
+        // 결정: 스파이크에서는 이 앱이 쓴 테스트 걸음도 보낸다(공식 예제는 자기 앱 기록을 거름)
+        if (samples.isNotEmpty()) channel.invokeMethod("onStepSamples", mapOf("samples" to samples))
+    }
+
+    private suspend fun newToken(client: HealthConnectClient): String =
+        client.getChangesToken(ChangesTokenRequest(setOf(StepsRecord::class)))
+
+    private fun saveToken(token: String) = prefs.edit().putString(TOKEN_KEY, token).apply()
+
     private fun toMap(record: StepsRecord): Map<String, Any?> {
         val origin = record.metadata.dataOrigin.packageName
         val device = record.metadata.device
@@ -209,6 +270,10 @@ class RdcHealthPlugin :
 
     private companion object {
         const val REQUEST_CODE = 0x5254
+        const val PREFS = "rdc_health_spike"
+        const val OBSERVING_KEY = "observing"
+        const val TOKEN_KEY = "changes_token"
+        const val POLL_MS = 10_000L
         val PERMISSIONS = setOf(
             HealthPermission.getReadPermission(StepsRecord::class),
             HealthPermission.getWritePermission(StepsRecord::class),
