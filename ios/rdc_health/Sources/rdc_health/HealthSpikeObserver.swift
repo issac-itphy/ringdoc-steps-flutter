@@ -36,7 +36,7 @@ public enum HealthSpikeObserver {
     let reader = HealthStepReader.shared
     let observer = HKObserverQuery(sampleType: reader.stepType, predicate: nil) { _, completionHandler, error in
       if let error {
-        HealthSpikeLog.append(event: "observer_error", detail: HealthSpikeLog.detail(of: error), then: completionHandler)
+        logWithPedometer(event: "observer_error", detail: HealthSpikeLog.detail(of: error), then: completionHandler)
         return
       }
       fetchNewSamples(then: completionHandler)
@@ -57,7 +57,7 @@ public enum HealthSpikeObserver {
     ) { _, added, _, newAnchor, error in
       if let error {
         // 기기가 잠겨 있으면 여기서 errorDatabaseInaccessible이 온다
-        HealthSpikeLog.append(event: "observer_error", detail: HealthSpikeLog.detail(of: error), then: done)
+        logWithPedometer(event: "observer_error", detail: HealthSpikeLog.detail(of: error), then: done)
         return
       }
       if let newAnchor { saveAnchor(newAnchor) }
@@ -75,7 +75,7 @@ public enum HealthSpikeObserver {
           onSamples(maps)
           sent = true
         }
-        HealthSpikeLog.append(
+        logWithPedometer(
           event: "observer_fired",
           detail: ["newSamples": maps.count, "samples": logged, "sentToDart": sent],
           then: done
@@ -83,6 +83,18 @@ public enum HealthSpikeObserver {
       }
     }
     reader.store.execute(anchored)
+  }
+
+  /// 같은 순간의 최근 15분 CoreMotion 걸음(또는 오류)을 붙여 기록한다.
+  private static func logWithPedometer(event: String, detail: [String: Any], then done: @escaping () -> Void) {
+    PedometerReader.shared.recentSteps(seconds: 15 * 60) { outcome in
+      var detail = detail
+      switch outcome {
+      case .success(let steps): detail["pedometer15m"] = steps
+      case .failure(let error): detail["pedometerError"] = HealthSpikeLog.detail(of: error)
+      }
+      HealthSpikeLog.append(event: event, detail: detail, then: done)
+    }
   }
 
   private static func watchLockChanges() {

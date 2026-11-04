@@ -64,6 +64,22 @@ abstract class RdcHealthPlatform extends PlatformInterface {
     throw UnimplementedError('clearLog() has not been implemented.');
   }
 
+  /// CoreMotion 걸음 측정이 가능한지(시뮬레이터는 false). 비교용.
+  Future<bool> isStepCountingAvailable() {
+    throw UnimplementedError(
+      'isStepCountingAvailable() has not been implemented.',
+    );
+  }
+
+  /// CoreMotion 걸음을 [size] 칸으로 묶어 돌려준다. 비교용.
+  Future<List<StepBucket>> stepBuckets(
+    DateTime from,
+    DateTime to,
+    Duration size,
+  ) {
+    throw UnimplementedError('stepBuckets() has not been implemented.');
+  }
+
   /// 관찰 쿼리가 새 걸음 샘플을 받을 때마다 내보낸다. Flutter 엔진이 떠 있을 때만 온다.
   Stream<List<HealthStepSample>> get stepSampleEvents {
     throw UnimplementedError('stepSampleEvents has not been implemented.');

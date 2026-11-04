@@ -35,6 +35,18 @@ void main() {
               ];
             case 'getPlatformVersion':
               return '42';
+            case 'isStepCountingAvailable':
+              return false;
+            case 'stepBuckets':
+              return [
+                {
+                  'start': t10.millisecondsSinceEpoch,
+                  'end': t10
+                      .add(const Duration(minutes: 5))
+                      .millisecondsSinceEpoch,
+                  'steps': 30,
+                },
+              ];
           }
           return null;
         });
@@ -82,6 +94,25 @@ void main() {
     expect(entry.appState, 'background');
     expect(entry.protectedData, isFalse);
     expect(entry.detail['newSamples'], 1);
+  });
+
+  test('isStepCountingAvailable', () async {
+    expect(await platform.isStepCountingAvailable(), isFalse);
+  });
+
+  test('stepBuckets는 ms와 칸 크기(초)를 보내고 Map을 칸으로 바꾼다', () async {
+    final to = t10.add(const Duration(minutes: 10));
+    final buckets = await platform.stepBuckets(
+      t10,
+      to,
+      const Duration(minutes: 5),
+    );
+    expect(calls.single.arguments, {
+      'from': t10.millisecondsSinceEpoch,
+      'to': to.millisecondsSinceEpoch,
+      'sizeSec': 300,
+    });
+    expect(buckets.single.steps, 30);
   });
 
   test('onStepSamples를 받으면 stepSampleEvents가 샘플을 내보낸다', () async {

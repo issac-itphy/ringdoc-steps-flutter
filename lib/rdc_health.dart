@@ -31,6 +31,15 @@ class RdcHealth {
 
   Future<void> clearLog() => RdcHealthPlatform.instance.clearLog();
 
+  Future<bool> isStepCountingAvailable() =>
+      RdcHealthPlatform.instance.isStepCountingAvailable();
+
+  Future<List<StepBucket>> stepBuckets(
+    DateTime from,
+    DateTime to,
+    Duration size,
+  ) => RdcHealthPlatform.instance.stepBuckets(from, to, size);
+
   Stream<List<HealthStepSample>> get stepSampleEvents =>
       RdcHealthPlatform.instance.stepSampleEvents;
 }

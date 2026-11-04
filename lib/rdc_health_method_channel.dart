@@ -66,6 +66,29 @@ class MethodChannelRdcHealth extends RdcHealthPlatform {
   @override
   Future<void> clearLog() => methodChannel.invokeMethod<void>('clearLog');
 
+  @override
+  Future<bool> isStepCountingAvailable() async =>
+      await methodChannel.invokeMethod<bool>('isStepCountingAvailable') ??
+      false;
+
+  @override
+  Future<List<StepBucket>> stepBuckets(
+    DateTime from,
+    DateTime to,
+    Duration size,
+  ) async {
+    final maps = await methodChannel
+        .invokeListMethod<Map<Object?, Object?>>('stepBuckets', {
+          'from': from.millisecondsSinceEpoch,
+          'to': to.millisecondsSinceEpoch,
+          'sizeSec': size.inSeconds,
+        });
+    return [
+      for (final map in maps ?? const <Map<Object?, Object?>>[])
+        StepBucket.fromMap(map),
+    ];
+  }
+
   final _stepSamples = StreamController<List<HealthStepSample>>.broadcast();
 
   // 결정: 네이티브 → Dart 호출 처리기는 스트림을 처음 볼 때 단다. 생성자에서 달면 바인딩 초기화 전 생성 시 실패

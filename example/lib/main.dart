@@ -110,6 +110,12 @@ class _SamplesPageState extends State<SamplesPage> {
                 ),
                 child: const Text('기록 보기'),
               ),
+              OutlinedButton(
+                onPressed: () => Navigator.of(context).push(
+                  MaterialPageRoute<void>(builder: (_) => const ComparePage()),
+                ),
+                child: const Text('비교 표'),
+              ),
               SegmentedButton<Duration>(
                 segments: const [
                   ButtonSegment(
@@ -235,6 +241,107 @@ class _LogPageState extends State<LogPage> {
                   ),
               ],
             ),
+    );
+  }
+}
+
+/// 최근 3시간을 5분 칸으로 나눠 CoreMotion과 HealthKit(iPhone, 워치) 걸음을 나란히 본다.
+class ComparePage extends StatefulWidget {
+  const ComparePage({super.key});
+
+  @override
+  State<ComparePage> createState() => _ComparePageState();
+}
+
+class _ComparePageState extends State<ComparePage> {
+  final _health = RdcHealth();
+  bool? _pedometerAvailable;
+  List<SlotComparison> _rows = const [];
+  String? _error;
+
+  @override
+  void initState() {
+    super.initState();
+    _load();
+  }
+
+  Future<void> _load() async {
+    final now = DateTime.now();
+    // 칸 경계를 5분 단위로 맞춤
+    final to = DateTime(
+      now.year,
+      now.month,
+      now.day,
+      now.hour,
+      now.minute - now.minute % 5,
+    ).add(const Duration(minutes: 5));
+    final from = to.subtract(const Duration(hours: 3));
+    // HealthKit 권한 전이면 HealthKit 조회만 실패하므로 CoreMotion 결과는 따로 보여 준다
+    String? error;
+    var health = const <HealthStepSample>[];
+    try {
+      health = await _health.healthStepSamples(from, to);
+    } catch (e) {
+      error = 'HealthKit: $e';
+    }
+    try {
+      final available = await _health.isStepCountingAvailable();
+      final rows = compareSlots(
+        pedometer: await _health.stepBuckets(
+          from,
+          to,
+          const Duration(minutes: 5),
+        ),
+        health: health,
+        from: from,
+        to: to,
+      );
+      setState(() {
+        _pedometerAvailable = available;
+        _rows = rows.reversed.toList();
+        _error = error;
+      });
+    } catch (e) {
+      setState(() => _error = [?error, 'CoreMotion: $e'].join('\n'));
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final nonZero = _rows.where(
+      (r) => r.pedometerSteps + r.healthIphoneSteps + r.healthWatchSteps > 0,
+    );
+    return Scaffold(
+      appBar: AppBar(
+        title: const Text('비교 표 (최근 3시간, 5분 칸)'),
+        actions: [
+          IconButton(
+            tooltip: '새로고침',
+            icon: const Icon(Icons.refresh),
+            onPressed: _load,
+          ),
+        ],
+      ),
+      body: ListView(
+        padding: const EdgeInsets.all(16),
+        children: [
+          if (_error != null)
+            Text(_error!, style: const TextStyle(color: Colors.red)),
+          if (_pedometerAvailable == false)
+            const Text('CoreMotion: 사용 불가(걸음 센서 없음)'),
+          const Text(
+            '시각   CoreMotion   HK iPhone 등   HK Watch',
+            style: _heading,
+          ),
+          if (_rows.isNotEmpty && nonZero.isEmpty) const Text('모든 칸이 0보'),
+          for (final r in nonZero)
+            Text(
+              '${_time(r.start)}   '
+              '${_pedometerAvailable == false ? '-' : r.pedometerSteps}   '
+              '${r.healthIphoneSteps}   ${r.healthWatchSteps}',
+            ),
+        ],
+      ),
     );
   }
 }

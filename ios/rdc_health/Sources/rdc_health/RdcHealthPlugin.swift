@@ -43,6 +43,20 @@ public class RdcHealthPlugin: NSObject, FlutterPlugin {
     case "clearLog":
       HealthSpikeLog.clear()
       result(nil)
+    case "isStepCountingAvailable":
+      result(PedometerReader.isAvailable)
+    case "stepBuckets":
+      guard let args = call.arguments as? [String: Any],
+            let from = args["from"] as? Int,
+            let to = args["to"] as? Int,
+            let sizeSec = args["sizeSec"] as? Int
+      else {
+        result(FlutterError(code: "bad_args", message: "from, to(ms), sizeSec가 필요합니다", details: nil))
+        return
+      }
+      PedometerReader.shared.buckets(from: Self.date(from), to: Self.date(to), size: TimeInterval(sizeSec)) { rows in
+        DispatchQueue.main.async { result(rows) }
+      }
     default:
       result(FlutterMethodNotImplemented)
     }
