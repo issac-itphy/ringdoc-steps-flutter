@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'dart:convert';
+import 'dart:io';
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -7,8 +8,8 @@ import 'package:rdc_health/rdc_health.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  // 백그라운드 실행 때 Dart까지 도는지 기록으로 확인
-  await RdcHealth().appendLog('dart_main');
+  // 백그라운드 실행 때 Dart까지 도는지 기록으로 확인. Android 기록은 아직 없음(S9e)
+  if (Platform.isIOS) await RdcHealth().appendLog('dart_main');
   runApp(const MyApp());
 }
 

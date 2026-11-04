@@ -35,6 +35,9 @@ flutter:
   # adding or updating assets for this project.
   plugin:
     platforms:
+      android:
+        package: co.itphy.rdc_health
+        pluginClass: RdcHealthPlugin
       ios:
         pluginClass: RdcHealthPlugin
 
