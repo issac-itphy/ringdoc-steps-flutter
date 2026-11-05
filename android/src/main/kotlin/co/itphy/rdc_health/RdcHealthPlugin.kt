@@ -227,15 +227,19 @@ class RdcHealthPlugin :
         if (samples.isEmpty()) return@withLock
         channel.invokeMethod("onStepSamples", mapOf("samples" to samples))
         val now = System.currentTimeMillis()
+        val todayTotal = HealthSpikeNotifier.todayTotal(client)
         HealthSpikeLog.append(
             context!!,
             "observer_fired",
             mapOf(
                 "newSamples" to samples.size,
+                "todayTotal" to todayTotal,
                 "samples" to samples.map { it + ("delaySec" to (now - (it["end"] as Long)) / 1000) },
                 "sentToDart" to true,
             ),
         )
+        // S9h: 앱이 켜져 있을 때도 걸음이 늘면 알림. 주기 작업과 직전 합계를 같이 써서 중복 알림을 막는다
+        HealthSpikeNotifier.onTotal(context!!, todayTotal, "observer")
     }
 
     /**

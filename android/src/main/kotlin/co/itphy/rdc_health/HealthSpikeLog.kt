@@ -23,6 +23,7 @@ import java.time.ZoneId
 internal object HealthSpikeLog {
     private const val DOWNLOAD_DIR = "Download/rdc_health_spike/"
     private const val DOWNLOAD_NAME = "log.txt" // 내 파일 앱이 .jsonl은 못 열어서
+    private val READ_EVENTS = setOf("worker_fired", "observer_fired")
 
     private fun file(context: Context) =
         File(context.filesDir, "rdc_health_spike/log.jsonl").apply { parentFile?.mkdirs() }
@@ -58,9 +59,10 @@ internal object HealthSpikeLog {
         ) ?: return
         resolver.openOutputStream(uri, "wt")?.use { out ->
             // BOM: 삼성 내 파일 텍스트 보기가 한글을 UTF-8로 읽게
+            // 차이는 걸음을 읽은 사건(worker_fired, observer_fired)끼리만 비교한다
             var previousTotal: Long? = null
             val lines = read(context).joinToString("") { entry ->
-                val total = ((entry["detail"] as? Map<*, *>)?.get("todayTotal") as? Number)?.toLong()
+                val total = if (entry["event"] in READ_EVENTS) ((entry["detail"] as? Map<*, *>)?.get("todayTotal") as? Number)?.toLong() else null
                 val line = readable(entry, previousTotal)
                 if (total != null) previousTotal = total
                 line + "\n"
@@ -74,12 +76,12 @@ internal object HealthSpikeLog {
         val at = (entry["at"] as? Number)?.toLong() ?: 0L
         val time = Instant.ofEpochMilli(at).atZone(ZoneId.systemDefault()).toLocalTime().withNano(0)
         val detail = entry["detail"] as? Map<*, *> ?: emptyMap<Any, Any>()
-        val today = (detail["todayTotal"] as? Number)?.toLong()?.let { total ->
+        val today = (detail["todayTotal"] as? Number)?.toLong()?.takeIf { entry["event"] in READ_EVENTS }?.let { total ->
             // 날짜가 바뀌어 합계가 줄면 차이를 적지 않는다
             val diff = previousTotal?.let { total - it }?.takeIf { it >= 0 }?.let { " (+%,d)".format(it) } ?: ""
             "오늘 %,d보".format(total) + diff
         }
-        val posted = (detail["diff"] as? Number)?.let { "알림 띄움 +%,d".format(it.toLong()) }
+        val posted = (detail["diff"] as? Number)?.let { "알림 띄움 +%,d (%s)".format(it.toLong(), detail["source"] ?: "worker") }
         val samples = (detail["samples"] as? List<*>)?.mapNotNull { ((it as? Map<*, *>)?.get("count") as? Number)?.toLong() }
         val new = (detail["newSamples"] as? Number)?.let { n ->
             if (samples.isNullOrEmpty()) "바뀐 기록 $n" else "바뀐 기록 $n (${samples.joinToString(", ") { "%,d보".format(it) }})"
