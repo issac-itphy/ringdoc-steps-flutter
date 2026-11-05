@@ -5,9 +5,13 @@ import androidx.health.connect.client.HealthConnectClient
 import androidx.health.connect.client.changes.UpsertionChange
 import androidx.health.connect.client.records.StepsRecord
 import androidx.health.connect.client.request.ChangesTokenRequest
+import androidx.health.connect.client.request.ReadRecordsRequest
+import androidx.health.connect.client.time.TimeRangeFilter
 import androidx.work.CoroutineWorker
 import androidx.work.WorkerParameters
 import java.time.Instant
+import java.time.LocalDate
+import java.time.ZoneId
 
 /**
  * 앱이 꺼져 있어도 주기적으로 새 걸음을 읽어 기록 파일에 남긴다. Flutter 엔진 없이 네이티브로만 돈다.
@@ -45,7 +49,15 @@ class HealthSpikeWorker(context: Context, params: WorkerParameters) : CoroutineW
                 token = response.nextChangesToken
             } while (response.hasMore)
             prefs.edit().putString(RdcHealthPlugin.WORKER_TOKEN_KEY, token).apply()
-            HealthSpikeLog.append(context, "worker_fired", mapOf("newSamples" to samples.size, "samples" to samples))
+            // 변화가 없는 실행에도 오늘 합계를 남겨, 기록만 보고 쌓이는지 알 수 있게 한다
+            val startOfDay = LocalDate.now().atStartOfDay(ZoneId.systemDefault()).toInstant()
+            val todayTotal = client.readRecords(
+                ReadRecordsRequest(StepsRecord::class, TimeRangeFilter.between(startOfDay, now))
+            ).records.sumOf { it.count }
+            HealthSpikeLog.append(
+                context, "worker_fired",
+                mapOf("newSamples" to samples.size, "todayTotal" to todayTotal, "samples" to samples),
+            )
             Result.success()
         } catch (e: Exception) {
             // 권한 해제, 잠금 상태 저장소 등. 다음 주기에 다시 시도하도록 실패로 남기지 않는다
