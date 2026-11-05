@@ -37,6 +37,12 @@ void main() {
               return '42';
             case 'isStepCountingAvailable':
               return false;
+            case 'deviceInfo':
+              return {
+                'platform': 'android',
+                'sdk': 36,
+                'granted': ['READ_STEPS'],
+              };
             case 'stepBuckets':
               return [
                 {
@@ -113,6 +119,13 @@ void main() {
       'sizeSec': 300,
     });
     expect(buckets.single.steps, 30);
+  });
+
+  test('deviceInfo는 기기 정보 Map을 그대로 돌려준다', () async {
+    final info = await platform.deviceInfo();
+    expect(info['platform'], 'android');
+    expect(info['sdk'], 36);
+    expect(info['granted'], ['READ_STEPS']);
   });
 
   test('onStepSamples를 받으면 stepSampleEvents가 샘플을 내보낸다', () async {

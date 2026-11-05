@@ -4,6 +4,7 @@ import android.content.Context
 import android.content.Intent
 import android.os.Build
 import androidx.health.connect.client.HealthConnectClient
+import androidx.health.connect.client.HealthConnectFeatures
 import androidx.health.connect.client.PermissionController
 import androidx.health.connect.client.changes.UpsertionChange
 import androidx.health.connect.client.permission.HealthPermission
@@ -13,6 +14,9 @@ import androidx.health.connect.client.records.metadata.Metadata
 import androidx.health.connect.client.request.ChangesTokenRequest
 import androidx.health.connect.client.request.ReadRecordsRequest
 import androidx.health.connect.client.time.TimeRangeFilter
+import androidx.work.ExistingPeriodicWorkPolicy
+import androidx.work.PeriodicWorkRequestBuilder
+import androidx.work.WorkManager
 import io.flutter.embedding.engine.plugins.FlutterPlugin
 import io.flutter.embedding.engine.plugins.activity.ActivityAware
 import io.flutter.embedding.engine.plugins.activity.ActivityPluginBinding
@@ -33,6 +37,7 @@ import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import java.time.Instant
 import java.time.ZoneId
+import java.util.concurrent.TimeUnit
 
 /** Android는 Health Connect로 걸음을 읽고 쓴다. */
 class RdcHealthPlugin :
@@ -57,6 +62,7 @@ class RdcHealthPlugin :
         context = binding.applicationContext
         channel = MethodChannel(binding.binaryMessenger, "rdc_health")
         channel.setMethodCallHandler(this)
+        HealthSpikeLog.append(binding.applicationContext, "plugin_registered")
         // iOS bootstrap처럼, 켜 둔 적이 있으면 엔진이 붙을 때 다시 감지를 시작한다
         if (prefs.getBoolean(OBSERVING_KEY, false)) startPolling()
     }
@@ -103,8 +109,20 @@ class RdcHealthPlugin :
                 if (prefs.getString(TOKEN_KEY, null) == null) saveToken(newToken(client))
                 prefs.edit().putBoolean(OBSERVING_KEY, true).apply()
                 startPolling()
+                HealthSpikeLog.append(context!!, "observer_registered", mapOf("pollSec" to POLL_MS / 1000))
+                scheduleWorker(client)
                 result.success(null)
             }
+            "readLog" -> result.success(HealthSpikeLog.read(context!!))
+            "appendLog" -> {
+                HealthSpikeLog.append(context!!, call.argument<String>("event") ?: "unknown")
+                result.success(null)
+            }
+            "clearLog" -> {
+                HealthSpikeLog.clear(context!!)
+                result.success(null)
+            }
+            "deviceInfo" -> deviceInfo(result)
             // CoreMotion 비교는 iOS 전용. 비교 화면이 Android에서도 열리도록 빈 값을 돌려준다
             "isStepCountingAvailable" -> result.success(false)
             "stepBuckets" -> result.success(emptyList<Any>())
@@ -206,8 +224,81 @@ class RdcHealthPlugin :
         } while (response.hasMore)
         saveToken(token)
         // 결정: 스파이크에서는 이 앱이 쓴 테스트 걸음도 보낸다(공식 예제는 자기 앱 기록을 거름)
-        if (samples.isNotEmpty()) channel.invokeMethod("onStepSamples", mapOf("samples" to samples))
+        if (samples.isEmpty()) return@withLock
+        channel.invokeMethod("onStepSamples", mapOf("samples" to samples))
+        val now = System.currentTimeMillis()
+        HealthSpikeLog.append(
+            context!!,
+            "observer_fired",
+            mapOf(
+                "newSamples" to samples.size,
+                "samples" to samples.map { it + ("delaySec" to (now - (it["end"] as Long)) / 1000) },
+                "sentToDart" to true,
+            ),
+        )
     }
+
+    /**
+     * 앱이 꺼져 있을 때 읽는 주기 작업을 건다(S9e). 기기가 기능을 지원하고 백그라운드 읽기 권한이 있을 때만.
+     * 결정: 스파이크 측정을 위해 WorkManager 최소 주기인 15분으로 둔다. 정식 주기는 S7b에서 배터리와 함께 정한다
+     */
+    private suspend fun scheduleWorker(client: HealthConnectClient) {
+        val ctx = context ?: return
+        val supported = client.features.getFeatureStatus(
+            HealthConnectFeatures.FEATURE_READ_HEALTH_DATA_IN_BACKGROUND
+        ) == HealthConnectFeatures.FEATURE_STATUS_AVAILABLE
+        val granted = BACKGROUND_READ in client.permissionController.getGrantedPermissions()
+        if (!supported || !granted) {
+            HealthSpikeLog.append(ctx, "worker_unavailable", mapOf("featureSupported" to supported, "permissionGranted" to granted))
+            return
+        }
+        WorkManager.getInstance(ctx).enqueueUniquePeriodicWork(
+            WORK_NAME,
+            ExistingPeriodicWorkPolicy.KEEP,
+            PeriodicWorkRequestBuilder<HealthSpikeWorker>(15, TimeUnit.MINUTES).build(),
+        )
+        HealthSpikeLog.append(ctx, "worker_scheduled", mapOf("intervalMin" to 15))
+    }
+
+    /** S9a 기기 확인: 제조사, Android 버전, Health Connect 상태와 기능, 삼성 헬스 설치, 허용된 권한. */
+    private fun deviceInfo(result: Result) {
+        val ctx = context ?: return result.error("no_context", "플러그인이 엔진에 붙어 있지 않습니다", null)
+        val status = HealthConnectClient.getSdkStatus(ctx)
+        val info = mutableMapOf<String, Any?>(
+            "platform" to "android",
+            "manufacturer" to Build.MANUFACTURER,
+            "model" to Build.MODEL,
+            "release" to Build.VERSION.RELEASE,
+            "sdk" to Build.VERSION.SDK_INT,
+            "healthConnect" to when (status) {
+                HealthConnectClient.SDK_AVAILABLE -> "available"
+                HealthConnectClient.SDK_UNAVAILABLE -> "unavailable"
+                HealthConnectClient.SDK_UNAVAILABLE_PROVIDER_UPDATE_REQUIRED -> "update_required"
+                else -> "status_$status"
+            },
+            // Android 13 이하는 Health Connect가 별도 앱. 14 이상은 OS 안에 있어 이 패키지가 없을 수 있다
+            "healthConnectAppVersion" to packageVersion(ctx, "com.google.android.apps.healthdata"),
+            "samsungHealthVersion" to packageVersion(ctx, SAMSUNG_HEALTH),
+        )
+        if (status != HealthConnectClient.SDK_AVAILABLE) return result.success(info)
+        scope.launch {
+            try {
+                val client = HealthConnectClient.getOrCreate(ctx)
+                fun feature(flag: Int) = client.features.getFeatureStatus(flag) == HealthConnectFeatures.FEATURE_STATUS_AVAILABLE
+                info["backgroundReadSupported"] = feature(HealthConnectFeatures.FEATURE_READ_HEALTH_DATA_IN_BACKGROUND)
+                info["historyReadSupported"] = feature(HealthConnectFeatures.FEATURE_READ_HEALTH_DATA_HISTORY)
+                info["granted"] = client.permissionController.getGrantedPermissions()
+                    .map { it.removePrefix("android.permission.health.") }.sorted()
+            } catch (e: Exception) {
+                info["error"] = e.message
+            }
+            result.success(info)
+        }
+    }
+
+    /** 설치돼 있으면 버전 이름, 없거나 공개 범위 밖이면 null. 매니페스트 queries에 넣은 패키지만 보인다. */
+    private fun packageVersion(ctx: Context, packageName: String): String? =
+        runCatching { ctx.packageManager.getPackageInfo(packageName, 0).versionName }.getOrNull()
 
     private suspend fun newToken(client: HealthConnectClient): String =
         client.getChangesToken(ChangesTokenRequest(setOf(StepsRecord::class)))
@@ -268,15 +359,24 @@ class RdcHealthPlugin :
         context = null
     }
 
-    private companion object {
+    internal companion object {
         const val REQUEST_CODE = 0x5254
         const val PREFS = "rdc_health_spike"
         const val OBSERVING_KEY = "observing"
         const val TOKEN_KEY = "changes_token"
+        const val WORKER_TOKEN_KEY = "worker_changes_token"
+        const val WORK_NAME = "rdc_health_spike_read"
         const val POLL_MS = 10_000L
+        const val SAMSUNG_HEALTH = "com.sec.android.app.shealth"
+        const val BACKGROUND_READ = "android.permission.health.READ_HEALTH_DATA_IN_BACKGROUND"
+
+        // 과거 기록(30일 넘게) 권한은 S9f 범위 확인용. 권한 화면에서 끄고 켜며 비교한다
+        const val HISTORY_READ = "android.permission.health.READ_HEALTH_DATA_HISTORY"
         val PERMISSIONS = setOf(
             HealthPermission.getReadPermission(StepsRecord::class),
             HealthPermission.getWritePermission(StepsRecord::class),
+            BACKGROUND_READ,
+            HISTORY_READ,
         )
     }
 }

@@ -80,6 +80,11 @@ abstract class RdcHealthPlatform extends PlatformInterface {
     throw UnimplementedError('stepBuckets() has not been implemented.');
   }
 
+  /// 기기와 건강 저장소 상태(Android: Health Connect 상태와 기능, 삼성 헬스, 허용된 권한). 시험용.
+  Future<Map<String, Object?>> deviceInfo() {
+    throw UnimplementedError('deviceInfo() has not been implemented.');
+  }
+
   /// 관찰 쿼리가 새 걸음 샘플을 받을 때마다 내보낸다. Flutter 엔진이 떠 있을 때만 온다.
   Stream<List<HealthStepSample>> get stepSampleEvents {
     throw UnimplementedError('stepSampleEvents has not been implemented.');

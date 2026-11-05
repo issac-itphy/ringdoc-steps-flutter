@@ -3,8 +3,13 @@
   <!-- 결정: 걸음 권한은 패키지 매니페스트에 둬서 앱 매니페스트로 병합. 쓰기는 샘플 앱 시험용(G1 정식화 때 제거) -->
   <uses-permission android:name="android.permission.health.READ_STEPS" />
   <uses-permission android:name="android.permission.health.WRITE_STEPS" />
+  <!-- 앱이 꺼져 있을 때 읽기(S9e), 30일 넘은 기록 읽기(S9f 확인용) -->
+  <uses-permission android:name="android.permission.health.READ_HEALTH_DATA_IN_BACKGROUND" />
+  <uses-permission android:name="android.permission.health.READ_HEALTH_DATA_HISTORY" />
   <queries>
     <!-- Android 13 이하에서 Health Connect 앱 설치 여부 확인 -->
     <package android:name="com.google.android.apps.healthdata" />
+    <!-- 삼성 헬스 설치 여부와 앱 이름 확인(S9a, S9f) -->
+    <package android:name="com.sec.android.app.shealth" />
   </queries>
 </manifest>

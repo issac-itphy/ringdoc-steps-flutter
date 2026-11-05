@@ -40,6 +40,9 @@ class RdcHealth {
     Duration size,
   ) => RdcHealthPlatform.instance.stepBuckets(from, to, size);
 
+  Future<Map<String, Object?>> deviceInfo() =>
+      RdcHealthPlatform.instance.deviceInfo();
+
   Stream<List<HealthStepSample>> get stepSampleEvents =>
       RdcHealthPlatform.instance.stepSampleEvents;
 }

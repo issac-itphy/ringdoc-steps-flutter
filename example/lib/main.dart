@@ -1,6 +1,5 @@
 import 'dart:async';
 import 'dart:convert';
-import 'dart:io';
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -8,8 +7,8 @@ import 'package:rdc_health/rdc_health.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  // 백그라운드 실행 때 Dart까지 도는지 기록으로 확인. Android 기록은 아직 없음(S9e)
-  if (Platform.isIOS) await RdcHealth().appendLog('dart_main');
+  // 백그라운드 실행 때 Dart까지 도는지 기록으로 확인
+  await RdcHealth().appendLog('dart_main');
   runApp(const MyApp());
 }
 
@@ -117,6 +116,24 @@ class _SamplesPageState extends State<SamplesPage> {
                 ),
                 child: const Text('비교 표'),
               ),
+              OutlinedButton(
+                onPressed: () => _run(() async {
+                  final info = await _health.deviceInfo();
+                  if (!context.mounted) return;
+                  await showDialog<void>(
+                    context: context,
+                    builder: (_) => AlertDialog(
+                      title: const Text('기기 정보'),
+                      content: SelectableText(
+                        info.entries
+                            .map((e) => '${e.key}: ${e.value}')
+                            .join('\n'),
+                      ),
+                    ),
+                  );
+                }),
+                child: const Text('기기 정보'),
+              ),
               SegmentedButton<Duration>(
                 segments: const [
                   ButtonSegment(
@@ -124,6 +141,11 @@ class _SamplesPageState extends State<SamplesPage> {
                     label: Text('최근 3시간'),
                   ),
                   ButtonSegment(value: Duration(days: 7), label: Text('지난 7일')),
+                  // 30일 넘은 기록이 읽히는지(Android 과거 기록 권한) 확인용
+                  ButtonSegment(
+                    value: Duration(days: 60),
+                    label: Text('지난 60일'),
+                  ),
                 ],
                 selected: {_range},
                 onSelectionChanged: (selected) {

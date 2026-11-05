@@ -89,6 +89,10 @@ class MethodChannelRdcHealth extends RdcHealthPlatform {
     ];
   }
 
+  @override
+  Future<Map<String, Object?>> deviceInfo() async =>
+      await methodChannel.invokeMapMethod<String, Object?>('deviceInfo') ?? {};
+
   final _stepSamples = StreamController<List<HealthStepSample>>.broadcast();
 
   // 결정: 네이티브 → Dart 호출 처리기는 스트림을 처음 볼 때 단다. 생성자에서 달면 바인딩 초기화 전 생성 시 실패

@@ -1,4 +1,5 @@
 import Flutter
+import HealthKit
 import UIKit
 
 public class RdcHealthPlugin: NSObject, FlutterPlugin {
@@ -43,6 +44,14 @@ public class RdcHealthPlugin: NSObject, FlutterPlugin {
     case "clearLog":
       HealthSpikeLog.clear()
       result(nil)
+    case "deviceInfo":
+      result([
+        "platform": "ios",
+        "model": UIDevice.current.model,
+        "release": UIDevice.current.systemVersion,
+        "healthDataAvailable": HKHealthStore.isHealthDataAvailable(),
+        "stepCountingAvailable": PedometerReader.isAvailable,
+      ])
     case "isStepCountingAvailable":
       result(PedometerReader.isAvailable)
     case "stepBuckets":
