@@ -79,11 +79,12 @@ internal object HealthSpikeLog {
             val diff = previousTotal?.let { total - it }?.takeIf { it >= 0 }?.let { " (+%,d)".format(it) } ?: ""
             "오늘 %,d보".format(total) + diff
         }
+        val posted = (detail["diff"] as? Number)?.let { "알림 띄움 +%,d".format(it.toLong()) }
         val samples = (detail["samples"] as? List<*>)?.mapNotNull { ((it as? Map<*, *>)?.get("count") as? Number)?.toLong() }
         val new = (detail["newSamples"] as? Number)?.let { n ->
             if (samples.isNullOrEmpty()) "바뀐 기록 $n" else "바뀐 기록 $n (${samples.joinToString(", ") { "%,d보".format(it) }})"
         }
-        return listOfNotNull(time, "%-16s".format(entry["event"]), "%-10s".format(entry["appState"]), today, new)
+        return listOfNotNull(time, "%-19s".format(entry["event"]), "%-10s".format(entry["appState"]), today, new, posted)
             .joinToString("  ")
     }
 

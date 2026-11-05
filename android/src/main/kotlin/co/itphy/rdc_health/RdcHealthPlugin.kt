@@ -365,6 +365,7 @@ class RdcHealthPlugin :
         const val OBSERVING_KEY = "observing"
         const val TOKEN_KEY = "changes_token"
         const val WORKER_TOKEN_KEY = "worker_changes_token"
+        const val LAST_TOTAL_KEY = "worker_last_total"
         const val WORK_NAME = "rdc_health_spike_read"
         const val POLL_MS = 10_000L
         const val SAMSUNG_HEALTH = "com.sec.android.app.shealth"
