@@ -134,6 +134,23 @@ class _SamplesPageState extends State<SamplesPage> {
                 }),
                 child: const Text('기기 정보'),
               ),
+              // T1(11/6): 집계 API가 하루 기록 1건을 시간 비율로 나누는지. Android 전용
+              OutlinedButton(
+                onPressed: () => _run(() async {
+                  final check = await _health.aggregateCheck();
+                  if (!context.mounted) return;
+                  await showDialog<void>(
+                    context: context,
+                    builder: (_) => AlertDialog(
+                      title: const Text('집계 확인'),
+                      content: SingleChildScrollView(
+                        child: SelectableText(_aggregateText(check)),
+                      ),
+                    ),
+                  );
+                }),
+                child: const Text('집계 확인'),
+              ),
               SegmentedButton<Duration>(
                 segments: const [
                   ButtonSegment(
@@ -379,4 +396,24 @@ String _time(DateTime t, {bool seconds = false}) {
   String two(int n) => n.toString().padLeft(2, '0');
   final hm = '${t.month}/${t.day} ${two(t.hour)}:${two(t.minute)}';
   return seconds ? '$hm:${two(t.second)}' : hm;
+}
+
+/// 집계 확인 결과를 한눈에: 오늘 집계, 기록 단건, 1시간 단위 집계.
+String _aggregateText(Map<String, Object?> check) {
+  DateTime at(Object? ms) =>
+      DateTime.fromMillisecondsSinceEpoch((ms as num?)?.toInt() ?? 0);
+  final records = (check['records'] as List?) ?? const [];
+  final hourly = (check['hourly'] as List?) ?? const [];
+  return [
+    '오늘 00:00~지금 집계: ${check['aggregateToday'] ?? '없음'}보',
+    '',
+    '기록 단건 ${records.length}개',
+    for (final r in records.cast<Map>())
+      '  ${_time(at(r['start']))} ~ ${_time(at(r['end']))}  '
+          '${r['count']}보  ${r['source']}',
+    '',
+    '1시간 단위 집계',
+    for (final h in hourly.cast<Map>())
+      '  ${at(h['start']).hour.toString().padLeft(2, '0')}시  ${h['steps'] ?? 0}보',
+  ].join('\n');
 }

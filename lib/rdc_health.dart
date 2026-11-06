@@ -43,6 +43,9 @@ class RdcHealth {
   Future<Map<String, Object?>> deviceInfo() =>
       RdcHealthPlatform.instance.deviceInfo();
 
+  Future<Map<String, Object?>> aggregateCheck() =>
+      RdcHealthPlatform.instance.aggregateCheck();
+
   Stream<List<HealthStepSample>> get stepSampleEvents =>
       RdcHealthPlatform.instance.stepSampleEvents;
 }

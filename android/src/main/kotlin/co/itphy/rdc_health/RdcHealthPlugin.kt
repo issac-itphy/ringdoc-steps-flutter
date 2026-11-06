@@ -11,6 +11,8 @@ import androidx.health.connect.client.permission.HealthPermission
 import androidx.health.connect.client.records.StepsRecord
 import androidx.health.connect.client.records.metadata.Device
 import androidx.health.connect.client.records.metadata.Metadata
+import androidx.health.connect.client.request.AggregateGroupByDurationRequest
+import androidx.health.connect.client.request.AggregateRequest
 import androidx.health.connect.client.request.ChangesTokenRequest
 import androidx.health.connect.client.request.ReadRecordsRequest
 import androidx.health.connect.client.time.TimeRangeFilter
@@ -35,7 +37,9 @@ import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
+import java.time.Duration
 import java.time.Instant
+import java.time.LocalDate
 import java.time.ZoneId
 import java.util.concurrent.TimeUnit
 
@@ -123,6 +127,11 @@ class RdcHealthPlugin :
                 result.success(null)
             }
             "deviceInfo" -> deviceInfo(result)
+            "aggregateCheck" -> withClient(result) { client ->
+                val check = aggregateCheck(client)
+                HealthSpikeLog.append(context!!, "aggregate_check", check)
+                result.success(check)
+            }
             // CoreMotion 비교는 iOS 전용. 비교 화면이 Android에서도 열리도록 빈 값을 돌려준다
             "isStepCountingAvailable" -> result.success(false)
             "stepBuckets" -> result.success(emptyList<Any>())
@@ -265,6 +274,29 @@ class RdcHealthPlugin :
     }
 
     /** S9a 기기 확인: 제조사, Android 버전, Health Connect 상태와 기능, 삼성 헬스 설치, 허용된 권한. */
+    /**
+     * T1(11/6 S10 검증): 집계 API가 삼성 헬스의 하루 기록 1건을 시간 비율로 나누는지 본다.
+     * 오늘 00:00~지금의 집계 합계, 1시간 단위 집계, 기록 단건을 한 번에 돌려준다.
+     */
+    private suspend fun aggregateCheck(client: HealthConnectClient): Map<String, Any?> {
+        val zone = ZoneId.systemDefault()
+        val now = Instant.now()
+        val range = TimeRangeFilter.between(LocalDate.now(zone).atStartOfDay(zone).toInstant(), now)
+        val total = client.aggregate(AggregateRequest(setOf(StepsRecord.COUNT_TOTAL), range))[StepsRecord.COUNT_TOTAL]
+        val hourly = client.aggregateGroupByDuration(
+            AggregateGroupByDurationRequest(setOf(StepsRecord.COUNT_TOTAL), range, Duration.ofHours(1))
+        ).map { mapOf("start" to it.startTime.toEpochMilli(), "steps" to it.result[StepsRecord.COUNT_TOTAL]) }
+        val records = client.readRecords(ReadRecordsRequest(StepsRecord::class, range)).records.map {
+            mapOf(
+                "start" to it.startTime.toEpochMilli(),
+                "end" to it.endTime.toEpochMilli(),
+                "count" to it.count,
+                "source" to it.metadata.dataOrigin.packageName,
+            )
+        }
+        return mapOf("aggregateToday" to total, "hourly" to hourly, "records" to records, "now" to now.toEpochMilli())
+    }
+
     private fun deviceInfo(result: Result) {
         val ctx = context ?: return result.error("no_context", "플러그인이 엔진에 붙어 있지 않습니다", null)
         val status = HealthConnectClient.getSdkStatus(ctx)

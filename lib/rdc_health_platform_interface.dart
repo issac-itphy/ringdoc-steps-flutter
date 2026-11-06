@@ -85,6 +85,11 @@ abstract class RdcHealthPlatform extends PlatformInterface {
     throw UnimplementedError('deviceInfo() has not been implemented.');
   }
 
+  /// Health Connect 집계 확인(Android 전용, 시험용): 오늘 합계 집계, 1시간 단위 집계, 기록 단건을 한 번에 돌려준다.
+  Future<Map<String, Object?>> aggregateCheck() {
+    throw UnimplementedError('aggregateCheck() has not been implemented.');
+  }
+
   /// 관찰 쿼리가 새 걸음 샘플을 받을 때마다 내보낸다. Flutter 엔진이 떠 있을 때만 온다.
   Stream<List<HealthStepSample>> get stepSampleEvents {
     throw UnimplementedError('stepSampleEvents has not been implemented.');
