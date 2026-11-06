@@ -68,6 +68,17 @@ class _SamplesPageState extends State<SamplesPage> {
   Future<void> _load() => _run(() async {
     final to = DateTime.now();
     final samples = await _health.healthStepSamples(to.subtract(_range), to);
+    // S9f 근거: 조회 범위와 가장 오래된 기록 시각을 기록 파일에 남긴다
+    await _health.appendLog('range_read', {
+      'days': _range.inDays,
+      'count': samples.length,
+      'oldest': samples.isEmpty
+          ? null
+          : samples
+                .map((s) => s.start)
+                .reduce((a, b) => a.isBefore(b) ? a : b)
+                .toIso8601String(),
+    });
     setState(() {
       _samples = samples;
       _message = null;
@@ -111,6 +122,14 @@ class _SamplesPageState extends State<SamplesPage> {
               OutlinedButton(
                 onPressed: () => _run(() => _health.writeTestSteps(50)),
                 child: const Text('테스트 걸음 넣기'),
+              ),
+              // S9f: 45일 전 기록 45보를 넣고 "지난 60일"에 보이는지 확인. Android 전용
+              OutlinedButton(
+                onPressed: () => _run(() async {
+                  await _health.writeTestSteps(45, daysAgo: 45);
+                  setState(() => _message = '45일 전 테스트 걸음 45보를 넣었습니다');
+                }),
+                child: const Text('45일 전 테스트 걸음'),
               ),
               OutlinedButton(
                 onPressed: () => Navigator.of(context).push(
@@ -179,6 +198,21 @@ class _SamplesPageState extends State<SamplesPage> {
                   setState(() => _message = '40분 뒤 알림을 예약했습니다');
                 }),
                 child: const Text('예약 알림(+40분)'),
+              ),
+              // 11/6 오후: 본 앱 방식(alarmClock)이 Android 12 권한과 삼성 절전 상태 앱에서 뜨는지
+              OutlinedButton(
+                onPressed: () => _run(() async {
+                  final ok = await _health.scheduleTestNotification(
+                    5,
+                    alarmClock: true,
+                  );
+                  setState(
+                    () => _message = ok
+                        ? '5분 뒤 알람시계 방식으로 예약했습니다'
+                        : '정확한 알람 권한이 없어 예약하지 못했습니다',
+                  );
+                }),
+                child: const Text('알람시계 예약(+5분)'),
               ),
               SegmentedButton<Duration>(
                 segments: const [

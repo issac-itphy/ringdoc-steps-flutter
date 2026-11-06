@@ -6,6 +6,8 @@
   <!-- 앱이 꺼져 있을 때 읽기(S9e), 30일 넘은 기록 읽기(S9f 확인용) -->
   <uses-permission android:name="android.permission.health.READ_HEALTH_DATA_IN_BACKGROUND" />
   <uses-permission android:name="android.permission.health.READ_HEALTH_DATA_HISTORY" />
+  <!-- 원안 경로 측정(11/6): 활동 전환 API와 Recording API -->
+  <uses-permission android:name="android.permission.ACTIVITY_RECOGNITION" />
   <queries>
     <!-- Android 13 이하에서 Health Connect 앱 설치 여부 확인 -->
     <package android:name="com.google.android.apps.healthdata" />
@@ -15,5 +17,6 @@
   <application>
     <!-- T4 예약 알림 시험용. 다른 앱이 보내지 못하게 exported=false -->
     <receiver android:name=".HealthSpikeAlarmReceiver" android:exported="false" />
+    <receiver android:name=".HealthSpikeMotionReceiver" android:exported="false" />
   </application>
 </manifest>

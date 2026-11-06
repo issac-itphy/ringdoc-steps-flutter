@@ -67,6 +67,7 @@ class RdcHealthPlugin :
         channel = MethodChannel(binding.binaryMessenger, "rdc_health")
         channel.setMethodCallHandler(this)
         HealthSpikeLog.append(binding.applicationContext, "plugin_registered")
+        HealthSpikeMotion.ensureStarted(binding.applicationContext)
         // iOS bootstrap처럼, 켜 둔 적이 있으면 엔진이 붙을 때 다시 감지를 시작한다
         if (prefs.getBoolean(OBSERVING_KEY, false)) startPolling()
     }
@@ -90,7 +91,9 @@ class RdcHealthPlugin :
             "writeTestSteps" -> withClient(result) { client ->
                 // 샘플 앱 시험용(G1 정식화 때 제거)
                 val count = call.argument<Number>("count")?.toLong() ?: 50L
-                val end = Instant.now()
+                // S9f: 30일 넘은 기록이 읽히는지 보려고 과거 시각에도 넣는다
+                val daysAgo = call.argument<Number>("daysAgo")?.toLong() ?: 0L
+                val end = Instant.now().minus(java.time.Duration.ofDays(daysAgo))
                 val start = end.minusSeconds(60)
                 val offset = ZoneId.systemDefault().rules.getOffset(start)
                 client.insertRecords(
@@ -141,8 +144,8 @@ class RdcHealthPlugin :
             }
             "scheduleTestNotification" -> {
                 val ctx = context ?: return result.error("no_context", "플러그인이 엔진에 붙어 있지 않습니다", null)
-                HealthSpikeAlarm.schedule(ctx, call.argument<Number>("minutes")?.toInt() ?: 20)
-                result.success(null)
+                val minutes = call.argument<Number>("minutes")?.toInt() ?: 20
+                result.success(HealthSpikeAlarm.schedule(ctx, minutes, call.argument<Boolean>("alarmClock") == true))
             }
             "aggregateCheck" -> withClient(result) { client ->
                 val check = aggregateCheck(client)

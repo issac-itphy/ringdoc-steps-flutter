@@ -18,8 +18,8 @@ class RdcHealth {
     DateTime to,
   ) => RdcHealthPlatform.instance.healthStepSamples(from, to);
 
-  Future<void> writeTestSteps(int count) =>
-      RdcHealthPlatform.instance.writeTestSteps(count);
+  Future<void> writeTestSteps(int count, {int daysAgo = 0}) =>
+      RdcHealthPlatform.instance.writeTestSteps(count, daysAgo: daysAgo);
 
   Future<void> enableBackgroundDelivery() =>
       RdcHealthPlatform.instance.enableBackgroundDelivery();
@@ -55,8 +55,14 @@ class RdcHealth {
   Future<Map<String, Object?>> aggregateCheck() =>
       RdcHealthPlatform.instance.aggregateCheck();
 
-  Future<void> scheduleTestNotification(int minutes) =>
-      RdcHealthPlatform.instance.scheduleTestNotification(minutes);
+  /// [alarmClock]이면 본 앱과 같은 정확한 알람(setAlarmClock). 권한이 없으면 false.
+  Future<bool> scheduleTestNotification(
+    int minutes, {
+    bool alarmClock = false,
+  }) => RdcHealthPlatform.instance.scheduleTestNotification(
+    minutes,
+    alarmClock: alarmClock,
+  );
 
   Stream<List<HealthStepSample>> get stepSampleEvents =>
       RdcHealthPlatform.instance.stepSampleEvents;

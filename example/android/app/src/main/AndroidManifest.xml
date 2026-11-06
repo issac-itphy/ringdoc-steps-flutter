@@ -1,4 +1,8 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
+    <!-- 11/6 오후 시험: 본 앱과 같은 정확한 알람 권한. USE_EXACT_ALARM은 Android 13 이상에만 있음 -->
+    <uses-permission android:name="android.permission.USE_EXACT_ALARM" />
+    <!-- Android 12, 12L용. 11/6 시험에서 USE_EXACT_ALARM만으로는 Android 12에서 alarmClock 예약이 거부됨 -->
+    <uses-permission android:name="android.permission.SCHEDULE_EXACT_ALARM" android:maxSdkVersion="32" />
     <application
         android:label="rdc_health_example"
         android:name="${applicationName}"

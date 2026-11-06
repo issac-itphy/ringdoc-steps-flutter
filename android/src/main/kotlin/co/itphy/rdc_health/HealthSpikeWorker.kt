@@ -52,6 +52,9 @@ class HealthSpikeWorker(context: Context, params: WorkerParameters) : CoroutineW
                 mapOf("newSamples" to samples.size, "todayTotal" to todayTotal, "samples" to samples),
             )
             HealthSpikeNotifier.onTotal(context, todayTotal, "worker")
+            // 원안 경로 비교: 같은 깨움에서 Recording API가 최근 걸음을 어떤 단위로 주는지
+            runCatching { HealthSpikeLog.append(context, "recording_read", mapOf("buckets" to HealthSpikeMotion.readRecent(context))) }
+                .onFailure { HealthSpikeLog.append(context, "recording_error", mapOf("type" to it.javaClass.simpleName, "message" to it.message)) }
             Result.success()
         } catch (e: Exception) {
             // 권한 해제, 잠금 상태 저장소 등. 다음 주기에 다시 시도하도록 실패로 남기지 않는다

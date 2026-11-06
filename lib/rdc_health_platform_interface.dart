@@ -41,7 +41,7 @@ abstract class RdcHealthPlatform extends PlatformInterface {
   }
 
   /// 샘플 앱 시험용: 지금부터 1분 전까지 걸음 샘플 하나를 HealthKit에 쓴다.
-  Future<void> writeTestSteps(int count) {
+  Future<void> writeTestSteps(int count, {int daysAgo = 0}) {
     throw UnimplementedError('writeTestSteps() has not been implemented.');
   }
 
@@ -105,7 +105,10 @@ abstract class RdcHealthPlatform extends PlatformInterface {
   }
 
   /// T4 시험용(Android 전용): minutes 분 뒤 로컬 알림을 부정확 알람으로 예약한다. 그 전에 걸음이 늘면 주기 작업이 취소한다.
-  Future<void> scheduleTestNotification(int minutes) {
+  Future<bool> scheduleTestNotification(
+    int minutes, {
+    bool alarmClock = false,
+  }) {
     throw UnimplementedError(
       'scheduleTestNotification() has not been implemented.',
     );

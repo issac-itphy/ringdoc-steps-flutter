@@ -74,6 +74,9 @@ kotlin {
 dependencies {
     implementation("androidx.health.connect:connect-client:1.1.0")
     implementation("androidx.work:work-runtime-ktx:2.12.0")
+    // 원안 경로 측정(11/6): Recording API, 활동 전환 API
+    implementation("com.google.android.gms:play-services-fitness:21.3.0")
+    implementation("com.google.android.gms:play-services-location:21.3.0")
     testImplementation("org.jetbrains.kotlin:kotlin-test")
     testImplementation("org.mockito:mockito-core:5.0.0")
 }

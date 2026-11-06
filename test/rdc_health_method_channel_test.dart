@@ -83,9 +83,9 @@ void main() {
   });
 
   test('writeTestSteps는 걸음 수를 보낸다', () async {
-    await platform.writeTestSteps(50);
+    await platform.writeTestSteps(50, daysAgo: 45);
     expect(calls.single.method, 'writeTestSteps');
-    expect(calls.single.arguments, {'count': 50});
+    expect(calls.single.arguments, {'count': 50, 'daysAgo': 45});
   });
 
   test('appendLog는 이벤트 이름을 보낸다', () async {

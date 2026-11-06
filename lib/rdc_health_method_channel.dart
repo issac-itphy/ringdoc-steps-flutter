@@ -41,8 +41,11 @@ class MethodChannelRdcHealth extends RdcHealthPlatform {
   }
 
   @override
-  Future<void> writeTestSteps(int count) =>
-      methodChannel.invokeMethod<void>('writeTestSteps', {'count': count});
+  Future<void> writeTestSteps(int count, {int daysAgo = 0}) =>
+      methodChannel.invokeMethod<void>('writeTestSteps', {
+        'count': count,
+        'daysAgo': daysAgo,
+      });
 
   @override
   Future<void> enableBackgroundDelivery() =>
@@ -122,8 +125,15 @@ class MethodChannelRdcHealth extends RdcHealthPlatform {
       {};
 
   @override
-  Future<void> scheduleTestNotification(int minutes) => methodChannel
-      .invokeMethod<void>('scheduleTestNotification', {'minutes': minutes});
+  Future<bool> scheduleTestNotification(
+    int minutes, {
+    bool alarmClock = false,
+  }) async =>
+      await methodChannel.invokeMethod<bool>('scheduleTestNotification', {
+        'minutes': minutes,
+        'alarmClock': alarmClock,
+      }) ??
+      false;
 
   final _stepSamples = StreamController<List<HealthStepSample>>.broadcast();
 
