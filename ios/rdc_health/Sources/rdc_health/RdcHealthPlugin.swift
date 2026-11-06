@@ -29,6 +29,16 @@ public class RdcHealthPlugin: NSObject, FlutterPlugin {
         return
       }
       reader.samples(from: Self.date(from), to: Self.date(to)) { Self.reply(result, $0) }
+    case "healthStepBuckets":
+      guard let args = call.arguments as? [String: Any],
+            let from = args["from"] as? Int,
+            let to = args["to"] as? Int,
+            let sizeSec = args["sizeSec"] as? Int
+      else {
+        result(FlutterError(code: "bad_args", message: "from, to(ms), sizeSec가 필요합니다", details: nil))
+        return
+      }
+      reader.buckets(from: Self.date(from), to: Self.date(to), size: TimeInterval(sizeSec)) { Self.reply(result, $0) }
     case "writeTestSteps":
       let count = (call.arguments as? [String: Any])?["count"] as? Int ?? 50
       reader.writeTestSteps(count: count) { outcome in Self.reply(result, outcome.map { _ in nil as Any? }) }
@@ -39,8 +49,9 @@ public class RdcHealthPlugin: NSObject, FlutterPlugin {
     case "readLog":
       result(HealthSpikeLog.read())
     case "appendLog":
-      let event = (call.arguments as? [String: Any])?["event"] as? String ?? "unknown"
-      HealthSpikeLog.append(event: event) { result(nil) }
+      let args = call.arguments as? [String: Any]
+      let event = args?["event"] as? String ?? "unknown"
+      HealthSpikeLog.append(event: event, detail: args?["detail"] as? [String: Any] ?? [:]) { result(nil) }
     case "clearLog":
       HealthSpikeLog.clear()
       result(nil)

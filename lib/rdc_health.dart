@@ -3,6 +3,7 @@ import 'src/models.dart';
 
 export 'src/models.dart';
 export 'src/slot_comparison.dart';
+export 'src/step_rhythm.dart';
 
 class RdcHealth {
   Future<String?> getPlatformVersion() {
@@ -26,8 +27,10 @@ class RdcHealth {
   Future<List<HealthLogEntry>> readLog() =>
       RdcHealthPlatform.instance.readLog();
 
-  Future<void> appendLog(String event) =>
-      RdcHealthPlatform.instance.appendLog(event);
+  Future<void> appendLog(
+    String event, [
+    Map<String, Object?> detail = const {},
+  ]) => RdcHealthPlatform.instance.appendLog(event, detail);
 
   Future<void> clearLog() => RdcHealthPlatform.instance.clearLog();
 
@@ -40,11 +43,20 @@ class RdcHealth {
     Duration size,
   ) => RdcHealthPlatform.instance.stepBuckets(from, to, size);
 
+  Future<List<StepBucket>> healthStepBuckets(
+    DateTime from,
+    DateTime to,
+    Duration size,
+  ) => RdcHealthPlatform.instance.healthStepBuckets(from, to, size);
+
   Future<Map<String, Object?>> deviceInfo() =>
       RdcHealthPlatform.instance.deviceInfo();
 
   Future<Map<String, Object?>> aggregateCheck() =>
       RdcHealthPlatform.instance.aggregateCheck();
+
+  Future<void> scheduleTestNotification(int minutes) =>
+      RdcHealthPlatform.instance.scheduleTestNotification(minutes);
 
   Stream<List<HealthStepSample>> get stepSampleEvents =>
       RdcHealthPlatform.instance.stepSampleEvents;

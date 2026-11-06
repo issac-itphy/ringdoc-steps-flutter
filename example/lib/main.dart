@@ -5,11 +5,16 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:rdc_health/rdc_health.dart';
 
+import 'rhythm_notifier.dart';
+import 'rhythm_page.dart';
+
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
   // 백그라운드 실행 때 Dart까지 도는지 기록으로 확인
   await RdcHealth().appendLog('dart_main');
   runApp(const MyApp());
+  // S8 3단계: 앱이 열리거나 HealthKit이 백그라운드로 실행할 때 걸음 리듬 판정
+  unawaited(RhythmNotifier.instance.evaluateSafely('launch'));
 }
 
 class MyApp extends StatelessWidget {
@@ -39,6 +44,8 @@ class _SamplesPageState extends State<SamplesPage> {
   void initState() {
     super.initState();
     _subscription = _health.stepSampleEvents.listen((samples) {
+      // S8 3단계: 새 걸음이 올 때마다(백그라운드 포함) 판정. 10분 안 중복은 건너뜀
+      unawaited(RhythmNotifier.instance.evaluateSafely('observer'));
       final now = DateTime.now();
       setState(() => _events.insertAll(0, [for (final s in samples) (now, s)]));
     });
@@ -88,6 +95,7 @@ class _SamplesPageState extends State<SamplesPage> {
               FilledButton(
                 onPressed: () => _run(() async {
                   await _health.requestHealthKitAuthorization();
+                  await RhythmNotifier.instance.requestPermission();
                   await _load();
                 }),
                 child: const Text('권한 요청'),
@@ -115,6 +123,12 @@ class _SamplesPageState extends State<SamplesPage> {
                   MaterialPageRoute<void>(builder: (_) => const ComparePage()),
                 ),
                 child: const Text('비교 표'),
+              ),
+              OutlinedButton(
+                onPressed: () => Navigator.of(context).push(
+                  MaterialPageRoute<void>(builder: (_) => const RhythmPage()),
+                ),
+                child: const Text('걸음 리듬'),
               ),
               OutlinedButton(
                 onPressed: () => _run(() async {
@@ -150,6 +164,21 @@ class _SamplesPageState extends State<SamplesPage> {
                   );
                 }),
                 child: const Text('집계 확인'),
+              ),
+              // T4(11/6): 20분 뒤 알림 예약. 그 전에 걸음이 늘면 주기 작업이 취소한다. Android 전용
+              OutlinedButton(
+                onPressed: () => _run(() async {
+                  await _health.scheduleTestNotification(20);
+                  setState(() => _message = '20분 뒤 알림을 예약했습니다');
+                }),
+                child: const Text('예약 알림(+20분)'),
+              ),
+              OutlinedButton(
+                onPressed: () => _run(() async {
+                  await _health.scheduleTestNotification(40);
+                  setState(() => _message = '40분 뒤 알림을 예약했습니다');
+                }),
+                child: const Text('예약 알림(+40분)'),
               ),
               SegmentedButton<Duration>(
                 segments: const [

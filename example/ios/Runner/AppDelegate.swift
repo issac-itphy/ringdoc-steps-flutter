@@ -1,5 +1,6 @@
 import Flutter
 import UIKit
+import UserNotifications
 import rdc_health
 
 // 결정: 본 앱(ios/Runner/AppDelegate.swift)처럼 didFinishLaunching에서 플러그인 등록. 백그라운드 실행 동작을 본 앱과 같게 재기 위함
@@ -11,6 +12,8 @@ import rdc_health
   ) -> Bool {
     // 관찰 쿼리는 앱이 백그라운드로 실행될 때도 가장 먼저 다시 걸어야 함(Apple 문서)
     HealthSpikeObserver.bootstrap()
+    // flutter_local_notifications iOS 설정: 앞 화면에서도 알림 표시, 탭 처리
+    UNUserNotificationCenter.current().delegate = self as? UNUserNotificationCenterDelegate
     GeneratedPluginRegistrant.register(with: self)
     return super.application(application, didFinishLaunchingWithOptions: launchOptions)
   }

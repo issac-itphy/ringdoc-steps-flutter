@@ -60,8 +60,13 @@ class MethodChannelRdcHealth extends RdcHealthPlatform {
   }
 
   @override
-  Future<void> appendLog(String event) =>
-      methodChannel.invokeMethod<void>('appendLog', {'event': event});
+  Future<void> appendLog(
+    String event, [
+    Map<String, Object?> detail = const {},
+  ]) => methodChannel.invokeMethod<void>('appendLog', {
+    'event': event,
+    if (detail.isNotEmpty) 'detail': detail,
+  });
 
   @override
   Future<void> clearLog() => methodChannel.invokeMethod<void>('clearLog');
@@ -90,6 +95,24 @@ class MethodChannelRdcHealth extends RdcHealthPlatform {
   }
 
   @override
+  Future<List<StepBucket>> healthStepBuckets(
+    DateTime from,
+    DateTime to,
+    Duration size,
+  ) async {
+    final maps = await methodChannel
+        .invokeListMethod<Map<Object?, Object?>>('healthStepBuckets', {
+          'from': from.millisecondsSinceEpoch,
+          'to': to.millisecondsSinceEpoch,
+          'sizeSec': size.inSeconds,
+        });
+    return [
+      for (final map in maps ?? const <Map<Object?, Object?>>[])
+        StepBucket.fromMap(map),
+    ];
+  }
+
+  @override
   Future<Map<String, Object?>> deviceInfo() async =>
       await methodChannel.invokeMapMethod<String, Object?>('deviceInfo') ?? {};
 
@@ -97,6 +120,10 @@ class MethodChannelRdcHealth extends RdcHealthPlatform {
   Future<Map<String, Object?>> aggregateCheck() async =>
       await methodChannel.invokeMapMethod<String, Object?>('aggregateCheck') ??
       {};
+
+  @override
+  Future<void> scheduleTestNotification(int minutes) => methodChannel
+      .invokeMethod<void>('scheduleTestNotification', {'minutes': minutes});
 
   final _stepSamples = StreamController<List<HealthStepSample>>.broadcast();
 

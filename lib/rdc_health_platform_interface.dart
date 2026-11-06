@@ -56,7 +56,11 @@ abstract class RdcHealthPlatform extends PlatformInterface {
     throw UnimplementedError('readLog() has not been implemented.');
   }
 
-  Future<void> appendLog(String event) {
+  /// [detail]은 기록 줄의 detail에 그대로 들어간다(S8 되짚기 결과 등).
+  Future<void> appendLog(
+    String event, [
+    Map<String, Object?> detail = const {},
+  ]) {
     throw UnimplementedError('appendLog() has not been implemented.');
   }
 
@@ -80,6 +84,16 @@ abstract class RdcHealthPlatform extends PlatformInterface {
     throw UnimplementedError('stepBuckets() has not been implemented.');
   }
 
+  /// 건강 저장소 걸음을 [size] 칸으로 묶은 합계(S8 걸음 리듬). iOS는 HealthKit 통계 쿼리라 iPhone과 워치가 겹친 걸음을 한 번만 센다.
+  /// Android는 Health Connect 집계라 삼성 헬스 하루 기록은 시간 비율로 나뉜 값이 된다(2026-11-06 T1).
+  Future<List<StepBucket>> healthStepBuckets(
+    DateTime from,
+    DateTime to,
+    Duration size,
+  ) {
+    throw UnimplementedError('healthStepBuckets() has not been implemented.');
+  }
+
   /// 기기와 건강 저장소 상태(Android: Health Connect 상태와 기능, 삼성 헬스, 허용된 권한). 시험용.
   Future<Map<String, Object?>> deviceInfo() {
     throw UnimplementedError('deviceInfo() has not been implemented.');
@@ -88,6 +102,13 @@ abstract class RdcHealthPlatform extends PlatformInterface {
   /// Health Connect 집계 확인(Android 전용, 시험용): 오늘 합계 집계, 1시간 단위 집계, 기록 단건을 한 번에 돌려준다.
   Future<Map<String, Object?>> aggregateCheck() {
     throw UnimplementedError('aggregateCheck() has not been implemented.');
+  }
+
+  /// T4 시험용(Android 전용): minutes 분 뒤 로컬 알림을 부정확 알람으로 예약한다. 그 전에 걸음이 늘면 주기 작업이 취소한다.
+  Future<void> scheduleTestNotification(int minutes) {
+    throw UnimplementedError(
+      'scheduleTestNotification() has not been implemented.',
+    );
   }
 
   /// 관찰 쿼리가 새 걸음 샘플을 받을 때마다 내보낸다. Flutter 엔진이 떠 있을 때만 온다.

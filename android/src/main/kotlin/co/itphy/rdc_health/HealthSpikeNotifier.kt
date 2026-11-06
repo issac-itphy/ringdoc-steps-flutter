@@ -37,21 +37,31 @@ internal object HealthSpikeNotifier {
         val previous = prefs.getLong(RdcHealthPlugin.LAST_TOTAL_KEY, -1L).takeIf { it >= 0 }
         prefs.edit().putLong(RdcHealthPlugin.LAST_TOTAL_KEY, total).commit()
         val diff = increase(previous, total) ?: return
+        // T4: 예약 알림이 있으면 바로 띄우지 않고 그 예약을 취소한다(본 앱의 "움직이면 취소")
+        if (HealthSpikeAlarm.cancelIfPending(context, source)) return
         notify(context, total, diff, source)
         HealthSpikeLog.append(context, "notification_posted", mapOf("diff" to diff, "total" to total, "source" to source))
     }
 
-    /** 탭하면 샘플 앱 첫 화면. Android 13 이상의 알림 권한(POST_NOTIFICATIONS)은 스파이크 범위 밖(S10은 Android 12). */
     private fun notify(context: Context, total: Long, diff: Long, source: String) {
+        val by = if (source == "observer") "앱이 켜진 상태의 10초 확인" else "꺼진 앱의 주기 작업"
+        post(context, "걸음 +%,d".format(diff), "오늘 %,d보. %s이 띄운 알림".format(total, by))
+    }
+
+    /** T4: 예약해 둔 알림이 취소되지 않고 시간이 되어 뜬 경우. */
+    fun notifyScheduled(context: Context) =
+        post(context, "예약 알림", "예약한 시각까지 걸음 증가가 없어 그대로 떴습니다(취소 안 됨)")
+
+    /** 탭하면 샘플 앱 첫 화면. Android 13 이상의 알림 권한(POST_NOTIFICATIONS)은 스파이크 범위 밖(S10은 Android 12). */
+    private fun post(context: Context, title: String, text: String) {
         val manager = context.getSystemService(NotificationManager::class.java)
         manager.createNotificationChannel(NotificationChannel(CHANNEL, "걸음 시험", NotificationManager.IMPORTANCE_DEFAULT))
         val launch = context.packageManager.getLaunchIntentForPackage(context.packageName)
         val tap = PendingIntent.getActivity(context, 0, launch, PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT)
-        val by = if (source == "observer") "앱이 켜진 상태의 10초 확인" else "꺼진 앱의 주기 작업"
         val notification = Notification.Builder(context, CHANNEL)
             .setSmallIcon(android.R.drawable.ic_dialog_info)
-            .setContentTitle("걸음 +%,d".format(diff))
-            .setContentText("오늘 %,d보. %s이 띄운 알림".format(total, by))
+            .setContentTitle(title)
+            .setContentText(text)
             .setContentIntent(tap)
             .setAutoCancel(true)
             .build()

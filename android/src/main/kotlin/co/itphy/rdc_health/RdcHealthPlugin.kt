@@ -119,7 +119,7 @@ class RdcHealthPlugin :
             }
             "readLog" -> result.success(HealthSpikeLog.read(context!!))
             "appendLog" -> {
-                HealthSpikeLog.append(context!!, call.argument<String>("event") ?: "unknown")
+                HealthSpikeLog.append(context!!, call.argument<String>("event") ?: "unknown", call.argument<Map<String, Any?>>("detail") ?: emptyMap())
                 result.success(null)
             }
             "clearLog" -> {
@@ -127,6 +127,23 @@ class RdcHealthPlugin :
                 result.success(null)
             }
             "deviceInfo" -> deviceInfo(result)
+            // S8: Health Connect 집계는 삼성 헬스 하루 기록을 시간 비율로 나누므로(T1) 시간대별 판단에는 쓸 수 없음. iOS와 같은 모양만 맞춤
+            "healthStepBuckets" -> withClient(result) { client ->
+                val from = Instant.ofEpochMilli(call.argument<Number>("from")!!.toLong())
+                val to = Instant.ofEpochMilli(call.argument<Number>("to")!!.toLong())
+                val size = Duration.ofSeconds(call.argument<Number>("sizeSec")!!.toLong())
+                val rows = client.aggregateGroupByDuration(
+                    AggregateGroupByDurationRequest(setOf(StepsRecord.COUNT_TOTAL), TimeRangeFilter.between(from, to), size)
+                ).map {
+                    mapOf("start" to it.startTime.toEpochMilli(), "end" to it.endTime.toEpochMilli(), "steps" to (it.result[StepsRecord.COUNT_TOTAL] ?: 0L).toInt())
+                }
+                result.success(rows)
+            }
+            "scheduleTestNotification" -> {
+                val ctx = context ?: return result.error("no_context", "플러그인이 엔진에 붙어 있지 않습니다", null)
+                HealthSpikeAlarm.schedule(ctx, call.argument<Number>("minutes")?.toInt() ?: 20)
+                result.success(null)
+            }
             "aggregateCheck" -> withClient(result) { client ->
                 val check = aggregateCheck(client)
                 HealthSpikeLog.append(context!!, "aggregate_check", check)

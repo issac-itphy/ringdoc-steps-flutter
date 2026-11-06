@@ -86,7 +86,12 @@ internal object HealthSpikeLog {
         val new = (detail["newSamples"] as? Number)?.let { n ->
             if (samples.isNullOrEmpty()) "바뀐 기록 $n" else "바뀐 기록 $n (${samples.joinToString(", ") { "%,d보".format(it) }})"
         }
-        return listOfNotNull(time, "%-19s".format(entry["event"]), "%-10s".format(entry["appState"]), today, new, posted)
+        // T4: 예약 시각, 실제로 뜬 지연, 취소 시점
+        val planned = (detail["plannedAt"] as? Number)?.toLong()?.takeIf { it > 0 }
+            ?.let { "예약 " + Instant.ofEpochMilli(it).atZone(ZoneId.systemDefault()).toLocalTime().withNano(0) }
+        val late = (detail["delaySec"] as? Number)?.let { "지연 ${it}초" }
+        val cancelled = (detail["beforeSec"] as? Number)?.let { "예약 ${it}초 전 취소 (${detail["source"]})" }
+        return listOfNotNull(time, "%-19s".format(entry["event"]), "%-10s".format(entry["appState"]), today, new, posted, planned, late, cancelled)
             .joinToString("  ")
     }
 

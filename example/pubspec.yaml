@@ -29,6 +29,11 @@ dependencies:
   # Use with the CupertinoIcons class for iOS style icons.
   cupertino_icons: ^1.0.8
 
+  # S8 3단계: 걸음 리듬 알림 연결. 본 앱(ringdoc-biz-flutter/pubspec.yaml)과 같은 버전
+  flutter_local_notifications: 19.4.2
+  timezone: ^0.10.1
+  shared_preferences: 2.5.3
+
 dev_dependencies:
   integration_test:
     sdk: flutter
