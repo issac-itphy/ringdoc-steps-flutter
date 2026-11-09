@@ -21,7 +21,7 @@ android {
         applicationId = "co.itphy.rdc_health_example"
         // You can update the following values to match your application needs.
         // For more information, see: https://flutter.dev/to/review-gradle-config.
-        minSdk = 26 // 결정: Health Connect(connect-client 1.1.0)가 API 26 이상 요구
+        minSdk = flutter.minSdkVersion // 결정: 본 앱(android/app/build.gradle)과 같은 값으로 시험
         targetSdk = flutter.targetSdkVersion
         versionCode = flutter.versionCode
         versionName = flutter.versionName

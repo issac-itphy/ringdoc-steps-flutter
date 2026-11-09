@@ -33,6 +33,8 @@ android {
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_17
         targetCompatibility = JavaVersion.VERSION_17
+        // java.time을 API 26 미만에서 쓰려고. 앱도 desugaring을 켜야 한다(본 앱은 켜져 있음, flutter_local_notifications와 같음)
+        isCoreLibraryDesugaringEnabled = true
     }
 
     sourceSets {
@@ -45,7 +47,8 @@ android {
     }
 
     defaultConfig {
-        minSdk = 26 // 결정: Health Connect(connect-client 1.1.0)가 API 26 이상 요구
+        // 결정: 본 앱 minSdk(flutter.minSdkVersion 24)에 맞춤. Health Connect는 API 28 미만에서 getSdkStatus가 SDK_UNAVAILABLE을 돌려줘 쓰지 않는다
+        minSdk = 24
     }
 
     testOptions {
@@ -72,6 +75,7 @@ kotlin {
 }
 
 dependencies {
+    coreLibraryDesugaring("com.android.tools:desugar_jdk_libs:2.1.4")
     implementation("androidx.health.connect:connect-client:1.1.0")
     implementation("androidx.work:work-runtime-ktx:2.12.0")
     // 원안 경로 측정(11/6): Recording API, 활동 전환 API

@@ -67,7 +67,7 @@ internal object HealthSpikeLog {
                 if (total != null) previousTotal = total
                 line + "\n"
             }
-            out.write(("﻿" + lines).toByteArray())
+            out.write(("\uFEFF" + lines).toByteArray())
         }
     }
 

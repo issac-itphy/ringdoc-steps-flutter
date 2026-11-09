@@ -1,5 +1,8 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
+  xmlns:tools="http://schemas.android.com/tools"
   package="co.itphy.rdc_health">
+  <!-- 본 앱 minSdk 24에 맞춤. Health Connect는 API 28 미만에서 SDK_UNAVAILABLE이라 호출하지 않는다 -->
+  <uses-sdk tools:overrideLibrary="androidx.health.connect.client" />
   <!-- 결정: 걸음 권한은 패키지 매니페스트에 둬서 앱 매니페스트로 병합. 쓰기는 샘플 앱 시험용(G1 정식화 때 제거) -->
   <uses-permission android:name="android.permission.health.READ_STEPS" />
   <uses-permission android:name="android.permission.health.WRITE_STEPS" />

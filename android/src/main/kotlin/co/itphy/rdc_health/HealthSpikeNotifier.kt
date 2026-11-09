@@ -5,6 +5,7 @@ import android.app.NotificationChannel
 import android.app.NotificationManager
 import android.app.PendingIntent
 import android.content.Context
+import android.os.Build
 import androidx.health.connect.client.HealthConnectClient
 import androidx.health.connect.client.records.StepsRecord
 import androidx.health.connect.client.request.ReadRecordsRequest
@@ -55,10 +56,16 @@ internal object HealthSpikeNotifier {
     /** 탭하면 샘플 앱 첫 화면. Android 13 이상의 알림 권한(POST_NOTIFICATIONS)은 스파이크 범위 밖(S10은 Android 12). */
     private fun post(context: Context, title: String, text: String) {
         val manager = context.getSystemService(NotificationManager::class.java)
-        manager.createNotificationChannel(NotificationChannel(CHANNEL, "걸음 시험", NotificationManager.IMPORTANCE_DEFAULT))
+        // 알림 채널은 Android 8(API 26)부터. 그 아래는 채널 없는 생성자
+        val builder = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            manager.createNotificationChannel(NotificationChannel(CHANNEL, "걸음 시험", NotificationManager.IMPORTANCE_DEFAULT))
+            Notification.Builder(context, CHANNEL)
+        } else {
+            @Suppress("DEPRECATION") Notification.Builder(context)
+        }
         val launch = context.packageManager.getLaunchIntentForPackage(context.packageName)
         val tap = PendingIntent.getActivity(context, 0, launch, PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT)
-        val notification = Notification.Builder(context, CHANNEL)
+        val notification = builder
             .setSmallIcon(android.R.drawable.ic_dialog_info)
             .setContentTitle(title)
             .setContentText(text)
