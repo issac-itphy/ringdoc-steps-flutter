@@ -20,7 +20,7 @@
 dependencies:
   rdc_health:
     git:
-      url: https://github.com/issac-itphy/rdc_health.git
+      url: https://github.com/issac-itphy/ringdoc-steps-flutter.git
       ref: <커밋 해시>
 ```
 
@@ -116,7 +116,11 @@ dependencies {
 
 ## 개발
 
-clone한 폴더 이름은 `rdc_health` 그대로 둡니다. 이름이 다르면 샘플 앱의 iOS 빌드가 SwiftPM 패키지 이름 충돌로 실패합니다.
+clone할 때 폴더 이름을 패키지 이름과 같은 `rdc_health`로 둡니다. 레포 이름대로 두면 샘플 앱의 iOS 빌드가 SwiftPM 패키지 이름 충돌로 실패합니다. 본 앱처럼 git 의존으로 받을 때는 이 문제가 없습니다.
+
+```sh
+git clone https://github.com/issac-itphy/ringdoc-steps-flutter.git rdc_health
+```
 
 ```sh
 fvm flutter analyze

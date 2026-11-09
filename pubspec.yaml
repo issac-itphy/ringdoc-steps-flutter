@@ -2,7 +2,7 @@ name: rdc_health
 description: "링닥 비즈 앱의 걸음 기록 Flutter 플러그인(iOS HealthKit, CoreMotion, Android Health Connect)"
 version: 0.0.1
 publish_to: none
-repository: https://github.com/issac-itphy/rdc_health
+repository: https://github.com/issac-itphy/ringdoc-steps-flutter
 
 environment:
   sdk: ">=3.9.2"
