@@ -116,6 +116,8 @@ dependencies {
 
 ## 개발
 
+clone한 폴더 이름은 `rdc_health` 그대로 둡니다. 이름이 다르면 샘플 앱의 iOS 빌드가 SwiftPM 패키지 이름 충돌로 실패합니다.
+
 ```sh
 fvm flutter analyze
 fvm flutter test
