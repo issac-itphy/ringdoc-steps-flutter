@@ -27,11 +27,9 @@
 	<key>LSRequiresIPhoneOS</key>
 	<true/>
 	<key>NSHealthShareUsageDescription</key>
-	<string>걸음 기록 시험을 위해 건강 앱의 걸음 수를 읽습니다</string>
-	<key>NSHealthUpdateUsageDescription</key>
-	<string>시험용 걸음 기록을 건강 앱에 씁니다</string>
+	<string>걸음 수를 읽어 활동 알림을 보내기 위해 건강 앱의 걸음 기록을 읽습니다</string>
 	<key>NSMotionUsageDescription</key>
-	<string>걸음 기록 시험을 위해 동작 및 피트니스 기록을 읽습니다</string>
+	<string>걸음 수를 읽어 활동 알림을 보내기 위해 동작 및 피트니스 기록을 읽습니다</string>
 	<key>UIApplicationSupportsIndirectInputEvents</key>
 	<true/>
 	<key>UILaunchStoryboardName</key>
@@ -51,10 +49,5 @@
 		<string>UIInterfaceOrientationLandscapeLeft</string>
 		<string>UIInterfaceOrientationLandscapeRight</string>
 	</array>
-	<!-- 결정: 스파이크 기록을 파일 앱(나의 iPhone > Rdc Health)에서 보려고 Documents를 노출. 샘플 앱 전용 -->
-	<key>UIFileSharingEnabled</key>
-	<true/>
-	<key>LSSupportsOpeningDocumentsInPlace</key>
-	<true/>
 </dict>
 </plist>
