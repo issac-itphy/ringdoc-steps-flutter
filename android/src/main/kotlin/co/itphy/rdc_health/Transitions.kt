@@ -51,7 +51,8 @@ class TransitionReceiver : BroadcastReceiver() {
         // 다른 앱이 보낸 가짜 전환을 거른다
         if (!ActivityTransitionResult.hasResult(intent)) return
         val app = context.applicationContext
-        if (!Store.enabled(app)) return
+        // 결정: 비활성이면 전환을 기록하지 않고 작업도 올리지 않는다. 호스트 판단용 깨움은 15분 주기 작업이 맡는다(전환마다 엔진을 띄우지 않아 배터리 절약)
+        if (!Store.enabled(app) || !Store.active(app)) return
         val now = System.currentTimeMillis()
         val nowNanos = SystemClock.elapsedRealtimeNanos()
         val events = ActivityTransitionResult.extractResult(intent)?.transitionEvents.orEmpty()
@@ -64,7 +65,7 @@ class TransitionReceiver : BroadcastReceiver() {
             )
         }
         // 결정: 수신기는 약 10초만 산다. 여기서 Dart 엔진을 띄우지 않고 기록만 한 뒤 작업으로 넘긴다
-        if (events.isNotEmpty() && Store.active(app)) WakeFlow.enqueueWake(app)
+        if (events.isNotEmpty()) WakeFlow.enqueueWake(app)
     }
 }
 

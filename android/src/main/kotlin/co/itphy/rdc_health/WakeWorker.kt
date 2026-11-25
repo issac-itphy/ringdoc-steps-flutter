@@ -47,10 +47,10 @@ internal object WakeFlow {
 
     suspend fun run(c: Context) {
         if (!Store.enabled(c)) return
-        // 켜져 있고 활성일 때만 Dart를 부른다. Health Connect 합계 기록은 어느 쪽이든 남긴다(구간 계산 재료)
-        quietly { if (HealthConnectSteps.isAvailable(c)) HealthConnectSteps.recordTotal(c) }
+        // 결정: Dart 핸들러는 켜져 있으면 비활성이어도 부른다(호스트가 로그아웃 14일 뒤 disable 같은 판단을 함). 비활성이면 기록(합계 저장)만 멈춘다
+        if (Store.active(c)) quietly { if (HealthConnectSteps.isAvailable(c)) HealthConnectSteps.recordTotal(c) }
         val handles = Store.handles(c)
-        if (Store.active(c) && handles != null) quietly { BackgroundRunner.run(c, handles.first, handles.second) }
+        if (handles != null) quietly { BackgroundRunner.run(c, handles.first, handles.second) }
     }
 
     private suspend fun quietly(block: suspend () -> Unit) {

@@ -77,7 +77,7 @@ class RdcHealthPlugin :
                 }
             }
             "setActive" -> {
-                // 결정: 끄기만 저장한다. 등록은 그대로 두고 수신기/작업이 Dart 실행만 건너뛴다
+                // 결정: 플래그만 저장한다. 등록과 주기 작업은 그대로 두고, 비활성이면 기록만 멈추며 Dart 핸들러는 계속 돈다
                 val active = call.argument<Boolean>("active") ?: return badArgs(result, "active가 필요합니다")
                 Store.setActive(c, active)
                 result.success(null)
