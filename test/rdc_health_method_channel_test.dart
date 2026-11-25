@@ -1,57 +1,50 @@
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:rdc_health/rdc_health.dart';
 import 'package:rdc_health/rdc_health_method_channel.dart';
 
-import 'models_test.dart' show sample, t10;
+import 'models_test.dart' show t10;
+
+// 최상위 함수여야 콜백 핸들을 얻을 수 있다
+@pragma('vm:entry-point')
+Future<void> topLevelHandler() async {}
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
 
-  MethodChannelRdcHealth platform = MethodChannelRdcHealth();
-  const MethodChannel channel = MethodChannel('rdc_health');
+  final platform = MethodChannelRdcHealth();
+  const channel = MethodChannel('rdc_health');
   final calls = <MethodCall>[];
+  Object? availabilityReply = 'available';
+  Object? permissionReply = true;
+  final t11 = t10.add(const Duration(hours: 1));
 
   setUp(() {
     calls.clear();
+    availabilityReply = 'available';
+    permissionReply = true;
     TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
-        .setMockMethodCallHandler(channel, (MethodCall methodCall) async {
-          calls.add(methodCall);
-          switch (methodCall.method) {
-            case 'requestHealthKitAuthorization':
-              return true;
-            case 'healthStepSamples':
-              return [
-                sample(t10, t10.add(const Duration(minutes: 5)), 120, 'Watch'),
-              ];
-            case 'readLog':
-              return [
-                {
-                  'at': t10.millisecondsSinceEpoch,
-                  'event': 'observer_fired',
-                  'appState': 'background',
-                  'protectedData': false,
-                  'detail': {'newSamples': 1},
-                },
-              ];
-            case 'getPlatformVersion':
-              return '42';
-            case 'isStepCountingAvailable':
-              return false;
-            case 'deviceInfo':
-              return {
-                'platform': 'android',
-                'sdk': 36,
-                'granted': ['READ_STEPS'],
-              };
-            case 'stepBuckets':
+        .setMockMethodCallHandler(channel, (call) async {
+          calls.add(call);
+          switch (call.method) {
+            case 'availability':
+              return availabilityReply;
+            case 'requestPermissions':
+              return permissionReply;
+            case 'moveSegments':
               return [
                 {
                   'start': t10.millisecondsSinceEpoch,
                   'end': t10
                       .add(const Duration(minutes: 5))
                       .millisecondsSinceEpoch,
-                  'steps': 30,
+                  'steps': 62,
+                  'source': 'healthKit',
                 },
+              ];
+            case 'hourlySteps':
+              return [
+                {'hourStart': t10.millisecondsSinceEpoch, 'steps': 410},
               ];
           }
           return null;
@@ -63,85 +56,88 @@ void main() {
         .setMockMethodCallHandler(channel, null);
   });
 
-  test('getPlatformVersion', () async {
-    expect(await platform.getPlatformVersion(), '42');
+  test('availability는 문자열을 enum으로 바꾸고 모르는 값은 unsupported', () async {
+    expect(await platform.availability(), HealthAvailability.available);
+    availabilityReply = 'needsInstall';
+    expect(await platform.availability(), HealthAvailability.needsInstall);
+    availabilityReply = 'brandNew';
+    expect(await platform.availability(), HealthAvailability.unsupported);
+    availabilityReply = null;
+    expect(await platform.availability(), HealthAvailability.unsupported);
   });
 
-  test('requestHealthKitAuthorization', () async {
-    expect(await platform.requestHealthKitAuthorization(), isTrue);
+  test('requestPermissions는 null이면 false', () async {
+    expect(await platform.requestPermissions(), isTrue);
+    permissionReply = null;
+    expect(await platform.requestPermissions(), isFalse);
   });
 
-  test('healthStepSamples는 ms 인자를 보내고 Map을 샘플로 바꾼다', () async {
-    final t11 = t10.add(const Duration(hours: 1));
-    final samples = await platform.healthStepSamples(t10, t11);
+  test('enable, setActive, disable은 이름과 인자를 보낸다', () async {
+    await platform.enable('u1');
+    await platform.setActive(false);
+    await platform.disable();
+    expect(calls.map((c) => c.method), ['enable', 'setActive', 'disable']);
+    expect(calls[0].arguments, {'userId': 'u1'});
+    expect(calls[1].arguments, {'active': false});
+    expect(calls[2].arguments, isNull);
+  });
+
+  test('moveSegments는 ms 범위를 보내고 Map을 구간으로 바꾼다', () async {
+    final list = await platform.moveSegments(t10, t11);
     expect(calls.single.arguments, {
       'from': t10.millisecondsSinceEpoch,
       'to': t11.millisecondsSinceEpoch,
     });
-    expect(samples.single.count, 120);
-    expect(samples.single.isWatch, isTrue);
+    expect(list.single.steps, 62);
+    expect(list.single.source, 'healthKit');
   });
 
-  test('writeTestSteps는 걸음 수를 보낸다', () async {
-    await platform.writeTestSteps(50, daysAgo: 45);
-    expect(calls.single.method, 'writeTestSteps');
-    expect(calls.single.arguments, {'count': 50, 'daysAgo': 45});
-  });
-
-  test('appendLog는 이벤트 이름을 보낸다', () async {
-    await platform.appendLog('dart_main');
-    expect(calls.single.arguments, {'event': 'dart_main'});
-  });
-
-  test('readLog는 Map을 HealthLogEntry로 바꾼다', () async {
-    final entry = (await platform.readLog()).single;
-    expect(entry.at, t10);
-    expect(entry.event, 'observer_fired');
-    expect(entry.appState, 'background');
-    expect(entry.protectedData, isFalse);
-    expect(entry.detail['newSamples'], 1);
-  });
-
-  test('isStepCountingAvailable', () async {
-    expect(await platform.isStepCountingAvailable(), isFalse);
-  });
-
-  test('stepBuckets는 ms와 칸 크기(초)를 보내고 Map을 칸으로 바꾼다', () async {
-    final to = t10.add(const Duration(minutes: 10));
-    final buckets = await platform.stepBuckets(
-      t10,
-      to,
-      const Duration(minutes: 5),
-    );
+  test('hourlySteps는 ms 범위를 보내고 Map을 시간별 걸음으로 바꾼다', () async {
+    final list = await platform.hourlySteps(t10, t11);
+    expect(calls.single.method, 'hourlySteps');
     expect(calls.single.arguments, {
       'from': t10.millisecondsSinceEpoch,
-      'to': to.millisecondsSinceEpoch,
-      'sizeSec': 300,
+      'to': t11.millisecondsSinceEpoch,
     });
-    expect(buckets.single.steps, 30);
+    expect(list.single.hourStart, t10);
+    expect(list.single.steps, 410);
   });
 
-  test('deviceInfo는 기기 정보 Map을 그대로 돌려준다', () async {
-    final info = await platform.deviceInfo();
-    expect(info['platform'], 'android');
-    expect(info['sdk'], 36);
-    expect(info['granted'], ['READ_STEPS']);
+  test('setBackgroundHandler는 최상위 함수의 핸들 둘을 보낸다', () async {
+    await platform.setBackgroundHandler(topLevelHandler);
+    final args = calls.single.arguments as Map;
+    expect(calls.single.method, 'setBackgroundHandler');
+    expect(args['dispatcherHandle'], isA<int>());
+    expect(args['handlerHandle'], isA<int>());
   });
 
-  test('onStepSamples를 받으면 stepSampleEvents가 샘플을 내보낸다', () async {
-    final next = platform.stepSampleEvents.first;
+  test('setBackgroundHandler는 클로저면 ArgumentError', () {
+    expect(
+      () => platform.setBackgroundHandler(() async {}),
+      throwsArgumentError,
+    );
+    expect(calls, isEmpty);
+  });
+
+  test('네이티브가 run을 부르면 등록한 핸들러가 돈다', () async {
+    ranHandler = false;
+    await platform.setBackgroundHandler(markingHandler);
+    final handle = (calls.single.arguments as Map)['handlerHandle'];
     await TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
         .handlePlatformMessage(
-          'rdc_health',
+          'rdc_health/background',
           const StandardMethodCodec().encodeMethodCall(
-            MethodCall('onStepSamples', {
-              'samples': [
-                sample(t10, t10.add(const Duration(minutes: 1)), 50, null),
-              ],
-            }),
+            MethodCall('run', {'handlerHandle': handle}),
           ),
           (_) {},
         );
-    expect((await next).single.count, 50);
+    expect(ranHandler, isTrue);
   });
+}
+
+var ranHandler = false;
+
+@pragma('vm:entry-point')
+Future<void> markingHandler() async {
+  ranHandler = true;
 }

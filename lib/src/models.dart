@@ -1,4 +1,55 @@
-/// 걸음 샘플 하나(iOS HealthKit, Android Health Connect). 시각은 네이티브가 epoch ms로 넘김.
+/// 건강 걸음 수집 가능 상태. 네이티브가 문자열로 넘긴다.
+enum HealthAvailability {
+  available,
+  needsInstall,
+  unsupported;
+
+  // 결정: 모르는 문자열은 unsupported로 처리. 새 값이 생겨도 옛 앱이 죽지 않게 함
+  static HealthAvailability parse(String? name) => values.firstWhere(
+    (v) => v.name == name,
+    orElse: () => HealthAvailability.unsupported,
+  );
+}
+
+/// 이동 구간 하나(5분, 50걸음 이상). 시각은 epoch ms.
+class MoveSegment {
+  const MoveSegment({
+    required this.start,
+    required this.end,
+    required this.steps,
+    required this.source,
+  });
+
+  factory MoveSegment.fromMap(Map<Object?, Object?> map) => MoveSegment(
+    start: DateTime.fromMillisecondsSinceEpoch(map['start'] as int),
+    end: DateTime.fromMillisecondsSinceEpoch(map['end'] as int),
+    steps: map['steps'] as int,
+    source: map['source'] as String,
+  );
+
+  final DateTime start;
+  final DateTime end;
+  final int steps;
+
+  // 결정: 출처는 enum 대신 문자열. 네이티브가 새 출처를 넣어도 파싱이 깨지지 않음
+  /// coreMotion, healthKit, activityTransition, recording, healthConnect
+  final String source;
+}
+
+/// 한 시간 걸음 수.
+class HourlySteps {
+  const HourlySteps({required this.hourStart, required this.steps});
+
+  factory HourlySteps.fromMap(Map<Object?, Object?> map) => HourlySteps(
+    hourStart: DateTime.fromMillisecondsSinceEpoch(map['hourStart'] as int),
+    steps: map['steps'] as int,
+  );
+
+  final DateTime hourStart;
+  final int steps;
+}
+
+/// 걸음 샘플 하나. 공개 API는 아니고 S8 분석 코드(slot_comparison)의 입력 모델이다. 시각은 epoch ms.
 class HealthStepSample {
   const HealthStepSample({
     required this.uuid,
@@ -41,7 +92,7 @@ class HealthStepSample {
   bool get isWatch => deviceModel == 'Watch' || deviceType == 'watch';
 }
 
-/// CoreMotion 걸음을 일정 간격으로 묶은 칸.
+/// 걸음을 일정 간격으로 묶은 칸. 공개 API는 아니고 S8 분석 코드(slot_comparison)의 입력 모델이다.
 class StepBucket {
   const StepBucket({
     required this.start,
@@ -58,33 +109,4 @@ class StepBucket {
   final DateTime start;
   final DateTime end;
   final int steps;
-}
-
-/// 네이티브가 기기 안 파일에 남긴 실행 기록 한 줄.
-class HealthLogEntry {
-  const HealthLogEntry({
-    required this.at,
-    required this.event,
-    required this.appState,
-    required this.protectedData,
-    required this.detail,
-  });
-
-  factory HealthLogEntry.fromMap(Map<Object?, Object?> map) => HealthLogEntry(
-    at: DateTime.fromMillisecondsSinceEpoch(map['at'] as int),
-    event: map['event'] as String,
-    appState: map['appState'] as String,
-    protectedData: map['protectedData'] as bool,
-    detail: Map<String, Object?>.from(map['detail'] as Map),
-  );
-
-  final DateTime at;
-  final String event;
-
-  /// active, inactive, background
-  final String appState;
-
-  /// false면 기기가 잠겨 HealthKit을 읽을 수 없는 상태.
-  final bool protectedData;
-  final Map<String, Object?> detail;
 }

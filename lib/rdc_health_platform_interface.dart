@@ -24,98 +24,45 @@ abstract class RdcHealthPlatform extends PlatformInterface {
     _instance = instance;
   }
 
-  Future<String?> getPlatformVersion() {
-    throw UnimplementedError('platformVersion() has not been implemented.');
+  /// 걸음 수집 가능 상태 하나. iOS는 HealthKit 사용 가능, Android는 활동 인식과 Play 서비스 버전, API 28 이상이면 Health Connect 설치 여부.
+  Future<HealthAvailability> availability() {
+    throw UnimplementedError('availability() has not been implemented.');
   }
 
-  /// HealthKit 걸음 읽기와 쓰기(샘플 앱 시험용) 권한 요청. 요청 창 처리가 끝나면 true.
-  /// 읽기를 허용했는지는 HealthKit이 알려 주지 않는다.
-  Future<bool> requestHealthKitAuthorization() {
+  /// 휴대폰 권한 요청(iOS 걸음 읽기, Android 신체 활동과 Health Connect 걸음 읽기, 백그라운드 읽기). 허용되면 true.
+  Future<bool> requestPermissions() {
+    throw UnimplementedError('requestPermissions() has not been implemented.');
+  }
+
+  /// 수집 스위치를 켜고 등록한다(iOS 관찰 쿼리와 백그라운드 전달, Android 활동 전환, Recording API 구독, Health Connect 변경 토큰, 주기 작업).
+  Future<void> enable(String userId) {
+    throw UnimplementedError('enable() has not been implemented.');
+  }
+
+  /// 로그아웃용. 기록만 멈추고 등록은 유지한다.
+  Future<void> setActive(bool active) {
+    throw UnimplementedError('setActive() has not been implemented.');
+  }
+
+  /// 모든 등록을 풀고 네이티브 파일을 지운다. 여러 번 불러도 안전하다.
+  Future<void> disable() {
+    throw UnimplementedError('disable() has not been implemented.');
+  }
+
+  /// 이동 구간 목록(5분, 50걸음 이상).
+  Future<List<MoveSegment>> moveSegments(DateTime from, DateTime to) {
+    throw UnimplementedError('moveSegments() has not been implemented.');
+  }
+
+  /// 시간별 걸음 수.
+  Future<List<HourlySteps>> hourlySteps(DateTime from, DateTime to) {
+    throw UnimplementedError('hourlySteps() has not been implemented.');
+  }
+
+  /// OS가 앱을 깨울 때 실행할 Dart 함수를 등록한다. [handler]는 `@pragma('vm:entry-point')`가 붙은 최상위 또는 static 함수여야 한다(아니면 [ArgumentError]).
+  Future<void> setBackgroundHandler(Future<void> Function() handler) {
     throw UnimplementedError(
-      'requestHealthKitAuthorization() has not been implemented.',
+      'setBackgroundHandler() has not been implemented.',
     );
-  }
-
-  Future<List<HealthStepSample>> healthStepSamples(DateTime from, DateTime to) {
-    throw UnimplementedError('healthStepSamples() has not been implemented.');
-  }
-
-  /// 샘플 앱 시험용: 지금부터 1분 전까지 걸음 샘플 하나를 HealthKit에 쓴다.
-  Future<void> writeTestSteps(int count, {int daysAgo = 0}) {
-    throw UnimplementedError('writeTestSteps() has not been implemented.');
-  }
-
-  /// 걸음 관찰 쿼리와 백그라운드 전달을 켠다. 다음 앱 시작부터 자동으로 다시 켜진다.
-  Future<void> enableBackgroundDelivery() {
-    throw UnimplementedError(
-      'enableBackgroundDelivery() has not been implemented.',
-    );
-  }
-
-  Future<List<HealthLogEntry>> readLog() {
-    throw UnimplementedError('readLog() has not been implemented.');
-  }
-
-  /// [detail]은 기록 줄의 detail에 그대로 들어간다(S8 되짚기 결과 등).
-  Future<void> appendLog(
-    String event, [
-    Map<String, Object?> detail = const {},
-  ]) {
-    throw UnimplementedError('appendLog() has not been implemented.');
-  }
-
-  Future<void> clearLog() {
-    throw UnimplementedError('clearLog() has not been implemented.');
-  }
-
-  /// CoreMotion 걸음 측정이 가능한지(시뮬레이터는 false). 비교용.
-  Future<bool> isStepCountingAvailable() {
-    throw UnimplementedError(
-      'isStepCountingAvailable() has not been implemented.',
-    );
-  }
-
-  /// CoreMotion 걸음을 [size] 칸으로 묶어 돌려준다. 비교용.
-  Future<List<StepBucket>> stepBuckets(
-    DateTime from,
-    DateTime to,
-    Duration size,
-  ) {
-    throw UnimplementedError('stepBuckets() has not been implemented.');
-  }
-
-  /// 건강 저장소 걸음을 [size] 칸으로 묶은 합계(S8 걸음 리듬). iOS는 HealthKit 통계 쿼리라 iPhone과 워치가 겹친 걸음을 한 번만 센다.
-  /// Android는 Health Connect 집계라 삼성 헬스 하루 기록은 시간 비율로 나뉜 값이 된다(2026-11-06 T1).
-  Future<List<StepBucket>> healthStepBuckets(
-    DateTime from,
-    DateTime to,
-    Duration size,
-  ) {
-    throw UnimplementedError('healthStepBuckets() has not been implemented.');
-  }
-
-  /// 기기와 건강 저장소 상태(Android: Health Connect 상태와 기능, 삼성 헬스, 허용된 권한). 시험용.
-  Future<Map<String, Object?>> deviceInfo() {
-    throw UnimplementedError('deviceInfo() has not been implemented.');
-  }
-
-  /// Health Connect 집계 확인(Android 전용, 시험용): 오늘 합계 집계, 1시간 단위 집계, 기록 단건을 한 번에 돌려준다.
-  Future<Map<String, Object?>> aggregateCheck() {
-    throw UnimplementedError('aggregateCheck() has not been implemented.');
-  }
-
-  /// T4 시험용(Android 전용): minutes 분 뒤 로컬 알림을 부정확 알람으로 예약한다. 그 전에 걸음이 늘면 주기 작업이 취소한다.
-  Future<bool> scheduleTestNotification(
-    int minutes, {
-    bool alarmClock = false,
-  }) {
-    throw UnimplementedError(
-      'scheduleTestNotification() has not been implemented.',
-    );
-  }
-
-  /// 관찰 쿼리가 새 걸음 샘플을 받을 때마다 내보낸다. Flutter 엔진이 떠 있을 때만 온다.
-  Stream<List<HealthStepSample>> get stepSampleEvents {
-    throw UnimplementedError('stepSampleEvents has not been implemented.');
   }
 }

@@ -1,11 +1,4 @@
-// This is a basic Flutter integration test.
-//
-// Since integration tests run in a full Flutter application, they can interact
-// with the host side of a plugin implementation, unlike Dart unit tests.
-//
-// For more information about Flutter integration tests, please see
-// https://flutter.dev/to/integration-testing
-
+// 실기기에서 네이티브 구현이 availability에 답하는지만 본다(G1b/G1c 이후).
 import 'package:flutter_test/flutter_test.dart';
 import 'package:integration_test/integration_test.dart';
 
@@ -14,11 +7,7 @@ import 'package:rdc_health/rdc_health.dart';
 void main() {
   IntegrationTestWidgetsFlutterBinding.ensureInitialized();
 
-  testWidgets('getPlatformVersion test', (WidgetTester tester) async {
-    final RdcHealth plugin = RdcHealth();
-    final String? version = await plugin.getPlatformVersion();
-    // The version string depends on the host platform running the test, so
-    // just assert that some non-empty string is returned.
-    expect(version?.isNotEmpty, true);
+  testWidgets('availability test', (WidgetTester tester) async {
+    expect(await RdcHealth().availability(), isA<HealthAvailability>());
   });
 }

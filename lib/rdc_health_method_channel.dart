@@ -1,9 +1,10 @@
-import 'dart:async';
+import 'dart:ui';
 
 import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
 
 import 'rdc_health_platform_interface.dart';
+import 'src/background.dart';
 import 'src/models.dart';
 
 /// An implementation of [RdcHealthPlatform] that uses method channels.
@@ -12,146 +13,73 @@ class MethodChannelRdcHealth extends RdcHealthPlatform {
   @visibleForTesting
   final methodChannel = const MethodChannel('rdc_health');
 
-  @override
-  Future<String?> getPlatformVersion() async {
-    final version = await methodChannel.invokeMethod<String>(
-      'getPlatformVersion',
-    );
-    return version;
-  }
+  Map<String, int> _range(DateTime from, DateTime to) => {
+    'from': from.millisecondsSinceEpoch,
+    'to': to.millisecondsSinceEpoch,
+  };
 
   @override
-  Future<bool> requestHealthKitAuthorization() async =>
-      await methodChannel.invokeMethod<bool>('requestHealthKitAuthorization') ??
-      false;
+  Future<HealthAvailability> availability() async => HealthAvailability.parse(
+    await methodChannel.invokeMethod<String>('availability'),
+  );
 
   @override
-  Future<List<HealthStepSample>> healthStepSamples(
-    DateTime from,
-    DateTime to,
-  ) async {
+  Future<bool> requestPermissions() async =>
+      await methodChannel.invokeMethod<bool>('requestPermissions') ?? false;
+
+  @override
+  Future<void> enable(String userId) =>
+      methodChannel.invokeMethod<void>('enable', {'userId': userId});
+
+  @override
+  Future<void> setActive(bool active) =>
+      methodChannel.invokeMethod<void>('setActive', {'active': active});
+
+  @override
+  Future<void> disable() => methodChannel.invokeMethod<void>('disable');
+
+  @override
+  Future<List<MoveSegment>> moveSegments(DateTime from, DateTime to) async {
     final maps = await methodChannel.invokeListMethod<Map<Object?, Object?>>(
-      'healthStepSamples',
-      {'from': from.millisecondsSinceEpoch, 'to': to.millisecondsSinceEpoch},
+      'moveSegments',
+      _range(from, to),
     );
     return [
       for (final map in maps ?? const <Map<Object?, Object?>>[])
-        HealthStepSample.fromMap(map),
+        MoveSegment.fromMap(map),
     ];
   }
 
   @override
-  Future<void> writeTestSteps(int count, {int daysAgo = 0}) =>
-      methodChannel.invokeMethod<void>('writeTestSteps', {
-        'count': count,
-        'daysAgo': daysAgo,
-      });
-
-  @override
-  Future<void> enableBackgroundDelivery() =>
-      methodChannel.invokeMethod<void>('enableBackgroundDelivery');
-
-  @override
-  Future<List<HealthLogEntry>> readLog() async {
+  Future<List<HourlySteps>> hourlySteps(DateTime from, DateTime to) async {
     final maps = await methodChannel.invokeListMethod<Map<Object?, Object?>>(
-      'readLog',
+      'hourlySteps',
+      _range(from, to),
     );
     return [
       for (final map in maps ?? const <Map<Object?, Object?>>[])
-        HealthLogEntry.fromMap(map),
+        HourlySteps.fromMap(map),
     ];
   }
 
   @override
-  Future<void> appendLog(
-    String event, [
-    Map<String, Object?> detail = const {},
-  ]) => methodChannel.invokeMethod<void>('appendLog', {
-    'event': event,
-    if (detail.isNotEmpty) 'detail': detail,
-  });
-
-  @override
-  Future<void> clearLog() => methodChannel.invokeMethod<void>('clearLog');
-
-  @override
-  Future<bool> isStepCountingAvailable() async =>
-      await methodChannel.invokeMethod<bool>('isStepCountingAvailable') ??
-      false;
-
-  @override
-  Future<List<StepBucket>> stepBuckets(
-    DateTime from,
-    DateTime to,
-    Duration size,
-  ) async {
-    final maps = await methodChannel
-        .invokeListMethod<Map<Object?, Object?>>('stepBuckets', {
-          'from': from.millisecondsSinceEpoch,
-          'to': to.millisecondsSinceEpoch,
-          'sizeSec': size.inSeconds,
-        });
-    return [
-      for (final map in maps ?? const <Map<Object?, Object?>>[])
-        StepBucket.fromMap(map),
-    ];
-  }
-
-  @override
-  Future<List<StepBucket>> healthStepBuckets(
-    DateTime from,
-    DateTime to,
-    Duration size,
-  ) async {
-    final maps = await methodChannel
-        .invokeListMethod<Map<Object?, Object?>>('healthStepBuckets', {
-          'from': from.millisecondsSinceEpoch,
-          'to': to.millisecondsSinceEpoch,
-          'sizeSec': size.inSeconds,
-        });
-    return [
-      for (final map in maps ?? const <Map<Object?, Object?>>[])
-        StepBucket.fromMap(map),
-    ];
-  }
-
-  @override
-  Future<Map<String, Object?>> deviceInfo() async =>
-      await methodChannel.invokeMapMethod<String, Object?>('deviceInfo') ?? {};
-
-  @override
-  Future<Map<String, Object?>> aggregateCheck() async =>
-      await methodChannel.invokeMapMethod<String, Object?>('aggregateCheck') ??
-      {};
-
-  @override
-  Future<bool> scheduleTestNotification(
-    int minutes, {
-    bool alarmClock = false,
-  }) async =>
-      await methodChannel.invokeMethod<bool>('scheduleTestNotification', {
-        'minutes': minutes,
-        'alarmClock': alarmClock,
-      }) ??
-      false;
-
-  final _stepSamples = StreamController<List<HealthStepSample>>.broadcast();
-
-  // 결정: 네이티브 → Dart 호출 처리기는 스트림을 처음 볼 때 단다. 생성자에서 달면 바인딩 초기화 전 생성 시 실패
-  @override
-  Stream<List<HealthStepSample>> get stepSampleEvents {
-    methodChannel.setMethodCallHandler(_onNativeCall);
-    return _stepSamples.stream;
-  }
-
-  Future<Object?> _onNativeCall(MethodCall call) async {
-    if (call.method == 'onStepSamples') {
-      final maps = (call.arguments as Map)['samples'] as List;
-      _stepSamples.add([
-        for (final map in maps)
-          HealthStepSample.fromMap(map as Map<Object?, Object?>),
-      ]);
+  Future<void> setBackgroundHandler(Future<void> Function() handler) {
+    final dispatcher = PluginUtilities.getCallbackHandle(
+      rdcHealthBackgroundDispatcher,
+    );
+    final handlerHandle = PluginUtilities.getCallbackHandle(handler);
+    if (dispatcher == null || handlerHandle == null) {
+      throw ArgumentError.value(
+        handler,
+        'handler',
+        '최상위 또는 static 함수여야 합니다(클로저 불가)',
+      );
     }
-    return null;
+    // 결정: iOS는 앱 엔진을 깨우므로 같은 `run` 호출이 메인 isolate로 온다. 여기서도 받아 둔다
+    rdcHealthBackgroundChannel.setMethodCallHandler(handleBackgroundCall);
+    return methodChannel.invokeMethod<void>('setBackgroundHandler', {
+      'dispatcherHandle': dispatcher.toRawHandle(),
+      'handlerHandle': handlerHandle.toRawHandle(),
+    });
   }
 }

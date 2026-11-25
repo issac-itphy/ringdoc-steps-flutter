@@ -2,7 +2,7 @@
 
 링닥 비즈 앱이 휴대폰과 워치의 걸음 기록을 읽는 데 쓰는 Flutter 플러그인입니다. iOS는 HealthKit과 CoreMotion을, Android는 Health Connect를 사용합니다.
 
-지금 코드는 시험 단계 구현이라 시험 전용 API와 권한이 함께 들어 있어 본 앱의 출시 빌드에는 넣지 않습니다.
+시험 전용 API를 걷어내고 정식 API 8개로 바꾸는 중입니다(브랜치 `feature/g1-formalize`). Dart 쪽은 끝났고 iOS/Android 네이티브 구현은 이 브랜치에서 진행 중이라, 그 전에는 호출해도 동작하지 않습니다. 판정 규칙은 본 앱이 갖고 이 패키지는 걸음 데이터와 깨우기만 제공합니다.
 
 ## 지원 환경
 
@@ -10,7 +10,7 @@
 |---|---|
 | Flutter | 3.44.0 (`.fvmrc`) |
 | iOS | 16.6 이상 |
-| Android | minSdk 24. API 28 미만에서는 Health Connect를 쓸 수 없어 `healthStepSamples` 같은 호출이 `health_connect_unavailable` 오류를 돌려줍니다. |
+| Android | minSdk 24. API 28 미만에서는 Health Connect를 쓸 수 없어 `availability()`가 `unsupported`를 돌려주고 다른 호출이 `health_connect_unavailable` 오류를 돌려줍니다. |
 
 ## 설치
 
@@ -44,7 +44,6 @@ dependency_overrides:
 |---|---|
 | `NSHealthShareUsageDescription` | 건강 앱의 걸음 읽기 |
 | `NSMotionUsageDescription` | 동작 및 피트니스(CoreMotion) 걸음 읽기 |
-| `NSHealthUpdateUsageDescription` | 시험용 걸음 쓰기(`writeTestSteps`)를 쓸 때만 |
 
 `ios/Runner/Runner.entitlements`에 HealthKit 항목을 추가합니다. Apple 개발자 계정의 App ID에서도 HealthKit을 켜고 프로비저닝 프로필을 다시 만들어야 합니다.
 
@@ -67,7 +66,7 @@ HealthSpikeObserver.bootstrap()
 
 ### Android
 
-걸음 권한은 패키지 매니페스트에서 본 앱 매니페스트로 자동 병합됩니다. 병합되는 항목은 `health.READ_STEPS`, `health.WRITE_STEPS`(시험용), `health.READ_HEALTH_DATA_IN_BACKGROUND`, `health.READ_HEALTH_DATA_HISTORY`, `ACTIVITY_RECOGNITION`과 시험용 수신기 2개입니다.
+걸음 권한은 패키지 매니페스트에서 본 앱 매니페스트로 자동 병합됩니다. 병합되는 항목은 `health.READ_STEPS`, `health.READ_HEALTH_DATA_IN_BACKGROUND`, `health.READ_HEALTH_DATA_HISTORY`, `ACTIVITY_RECOGNITION`입니다. G1c에서 정리됩니다.
 
 `android/app/src/main/AndroidManifest.xml`에는 Health Connect 권한 화면이 여는 처리방침 링크를 추가합니다. Android 13 이하는 메인 액티비티의 인텐트 필터를, Android 14 이상은 activity-alias를 사용합니다. 샘플 앱은 처리방침 화면 대신 첫 화면을 엽니다.
 
@@ -105,14 +104,20 @@ dependencies {
 
 이 패키지의 Gradle 설정은 AGP 9.0.1과 Kotlin 2.3.20 기준입니다. AGP 8을 쓰는 앱에서 빌드되는지는 아직 확인하지 않았습니다.
 
-## 시험 전용 기능
+## API
 
-본 앱에 정식으로 넣기 전에 걷어낼 항목입니다.
+| 함수 | 하는 일 |
+|---|---|
+| `availability()` | 수집 가능 상태 하나(`available`, `needsInstall`, `unsupported`) |
+| `requestPermissions()` | 휴대폰 권한 요청. 허용되면 true |
+| `enable(String userId)` | 수집 스위치를 켜고 등록 |
+| `setActive(bool active)` | 로그아웃용. 기록만 멈추고 등록은 유지 |
+| `disable()` | 모든 등록을 풀고 네이티브 파일 삭제. 여러 번 불러도 안전 |
+| `moveSegments(from, to)` | 이동 구간 목록(5분, 50걸음 이상) |
+| `hourlySteps(from, to)` | 시간별 걸음 수 |
+| `setBackgroundHandler(handler)` | OS가 앱을 깨울 때 실행할 함수 등록 |
 
-- 시험용 API: `writeTestSteps`, `scheduleTestNotification`, `readLog`, `appendLog`, `clearLog`
-- Android 걸음 증가 알림: 걸음이 늘면 패키지가 직접 로컬 알림을 띄우는 동작(앱이 꺼졌을 때의 주기 작업, 앱이 켜졌을 때의 10초 확인)과 예약 알림 취소 시험
-- 시험 로그: 걸음 기록을 기기 안 파일에 남기고 Android debug 빌드는 다운로드 폴더에도 복사
-- 권한: `health.WRITE_STEPS`, `NSHealthUpdateUsageDescription`
+`setBackgroundHandler`의 핸들러는 `@pragma('vm:entry-point')`가 붙은 최상위 또는 static 함수여야 하며, 클로저를 넘기면 `ArgumentError`가 납니다. 사용 예는 `example/lib/main.dart`를 보세요.
 
 ## 개발
 
