@@ -61,7 +61,7 @@ dependency_overrides:
 ```swift
 import rdc_health
 
-HealthSpikeObserver.bootstrap()
+RdcHealthPlugin.registerObserverIfEnabled()
 ```
 
 ### Android

@@ -51,6 +51,12 @@ class RdcHealthPlugin :
         context = binding.applicationContext
         channel = MethodChannel(binding.binaryMessenger, "rdc_health")
         channel.setMethodCallHandler(this)
+        // 결정: 켜져 있으면 엔진이 붙을 때(앱 시작, 헤드리스 포함) 전환 등록과 주기 작업을 다시 건다. 둘 다 멱등이라 Play 서비스가 등록을 잃었어도 복구된다
+        val app = binding.applicationContext
+        if (Store.enabled(app)) {
+            WakeFlow.schedulePeriodic(app)
+            scope.launch(Dispatchers.IO) { Transitions.awaitQuietly { Transitions.register(app) } }
+        }
     }
 
     override fun onMethodCall(call: MethodCall, result: Result) {
