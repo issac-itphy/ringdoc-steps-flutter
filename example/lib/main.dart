@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:rdc_health/rdc_health.dart';
 
@@ -5,7 +7,10 @@ import 'package:rdc_health/rdc_health.dart';
 @pragma('vm:entry-point')
 Future<void> onWake() async => debugPrint('rdc_health onWake');
 
-void main() {
+// 결정: 앱이 종료된 상태의 백그라운드 깨움을 받으려면 첫 await 전에 등록한다. 버튼은 재등록 시험용으로 남긴다
+Future<void> main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+  unawaited(RdcHealth().setBackgroundHandler(onWake));
   runApp(const MyApp());
 }
 
