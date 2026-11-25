@@ -49,6 +49,8 @@ android {
     defaultConfig {
         // 결정: 본 앱 minSdk(flutter.minSdkVersion 24)에 맞춤. Health Connect는 API 28 미만에서 getSdkStatus가 SDK_UNAVAILABLE을 돌려줘 쓰지 않는다
         minSdk = 24
+        // 릴리스 빌드에서 디버그 로그 호출 제거(호스트 앱 R8에 전달)
+        consumerProguardFiles("consumer-rules.pro")
     }
 
     testOptions {
@@ -78,7 +80,7 @@ dependencies {
     coreLibraryDesugaring("com.android.tools:desugar_jdk_libs:2.1.4")
     implementation("androidx.health.connect:connect-client:1.1.0")
     implementation("androidx.work:work-runtime-ktx:2.12.0")
-    // 원안 경로 측정(11/6): Recording API, 활동 전환 API
+    // Recording API(걸음 구독/읽기), 활동 전환 API
     implementation("com.google.android.gms:play-services-fitness:21.3.0")
     implementation("com.google.android.gms:play-services-location:21.3.0")
     testImplementation("org.jetbrains.kotlin:kotlin-test")

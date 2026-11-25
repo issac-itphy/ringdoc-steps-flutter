@@ -10,7 +10,7 @@
 |---|---|
 | Flutter | 3.44.0 (`.fvmrc`) |
 | iOS | 16.6 이상 |
-| Android | minSdk 24. API 28 미만에서는 Health Connect를 쓸 수 없어 `availability()`가 `unsupported`를 돌려주고 다른 호출이 `health_connect_unavailable` 오류를 돌려줍니다. |
+| Android | minSdk 24. Google Play 서비스(Recording API)가 필요합니다. Health Connect는 API 28 이상에서만 보조로 쓰고, 없으면 그 소스만 건너뜁니다. |
 
 ## 설치
 
@@ -66,7 +66,13 @@ HealthSpikeObserver.bootstrap()
 
 ### Android
 
-걸음 권한은 패키지 매니페스트에서 본 앱 매니페스트로 자동 병합됩니다. 병합되는 항목은 `health.READ_STEPS`, `health.READ_HEALTH_DATA_IN_BACKGROUND`, `health.READ_HEALTH_DATA_HISTORY`, `ACTIVITY_RECOGNITION`입니다. G1c에서 정리됩니다.
+패키지 매니페스트가 호스트 앱 매니페스트로 병합하는 권한은 `ACTIVITY_RECOGNITION`, `health.READ_STEPS`, `health.READ_HEALTH_DATA_IN_BACKGROUND`, `RECEIVE_BOOT_COMPLETED`입니다. 쓰기 권한과 30일 넘은 기록 읽기 권한은 쓰지 않습니다. 시험용 삼성 헬스 조회(`queries`)도 없앴고 Health Connect 앱 조회만 남겼습니다.
+
+- 가용성: Recording API를 줄 Play 서비스가 기준입니다(`unsupported`/`needsInstall`/`available`). Health Connect는 보조 신호라 없어도 `available`입니다.
+- 권한: `requestPermissions()`는 활동 인식을 묻고, Health Connect가 있으면 걸음 읽기와 백그라운드 읽기를 이어서 묻습니다. 반환값은 활동 인식 허용 여부입니다.
+- 부팅 수신기(`BootReceiver`): 재부팅과 앱 업데이트 뒤 수집이 켜져 있으면 활동 전환과 주기 작업을 다시 겁니다. 예약 알림은 호스트 앱의 flutter_local_notifications 수신기가 다시 겁니다.
+- 백그라운드 엔진: 걷기 전환이 오거나 15분 주기가 되면 WorkManager 작업이 헤드리스 FlutterEngine을 띄워 `setBackgroundHandler`로 등록한 핸들러를 한 번 실행하고(최대 60초) 엔진을 끕니다. `setActive(false)`이면 Dart는 부르지 않습니다. 호스트 앱은 Dart 쪽에서 `setBackgroundHandler`만 부르면 됩니다.
+- 로그: 걸음 수, 시각, 활동 상태는 로그에 남기지 않습니다. 릴리스 빌드에서 `Log.d/v`를 지우는 규칙(`consumer-rules.pro`)이 호스트 앱 R8에 전달됩니다.
 
 `android/app/src/main/AndroidManifest.xml`에는 Health Connect 권한 화면이 여는 처리방침 링크를 추가합니다. Android 13 이하는 메인 액티비티의 인텐트 필터를, Android 14 이상은 activity-alias를 사용합니다. 샘플 앱은 처리방침 화면 대신 첫 화면을 엽니다.
 
