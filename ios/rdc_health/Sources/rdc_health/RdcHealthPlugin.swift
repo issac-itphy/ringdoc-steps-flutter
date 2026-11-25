@@ -72,6 +72,7 @@ public class RdcHealthPlugin: NSObject, FlutterPlugin {
       }
       defaults.set(dispatcher, forKey: RdcHealthSettings.dispatcherHandle)
       defaults.set(handler, forKey: RdcHealthSettings.handlerHandle)
+      StepObserver.dartRegistered(handle: handler)
       result(nil)
 
     case "moveSegments":

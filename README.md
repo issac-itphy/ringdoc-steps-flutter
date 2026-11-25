@@ -119,6 +119,8 @@ dependencies {
 
 `setBackgroundHandler`의 핸들러는 `@pragma('vm:entry-point')`가 붙은 최상위 또는 static 함수여야 하며, 클로저를 넘기면 `ArgumentError`가 납니다. 사용 예는 `example/lib/main.dart`를 보세요.
 
+호스트 앱은 `main()` 초반(첫 `await` 전)에 `setBackgroundHandler`를 불러야 합니다. 앱이 종료된 상태에서 iOS가 백그라운드로 앱을 띄우면 걸음 변경 알림이 Dart 시작보다 먼저 도착하는데, 플러그인은 등록이 올 때까지 HealthKit 완료 콜백을 최대 25초 쥐고 있다가 등록 즉시 핸들러를 한 번 실행합니다. 등록이 25초 안에 오지 않으면 그 깨움은 처리 없이 끝납니다.
+
 ## 개발
 
 clone할 때 폴더 이름을 패키지 이름과 같은 `rdc_health`로 둡니다. 레포 이름대로 두면 샘플 앱의 iOS 빌드가 SwiftPM 패키지 이름 충돌로 실패합니다. 본 앱처럼 git 의존으로 받을 때는 이 문제가 없습니다.

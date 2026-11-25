@@ -50,31 +50,53 @@ enum StepObserver {
     query = nil
   }
 
+  // 메인 스레드에서만 만진다
+  private static var dartReady = false
+  private static var pending: [() -> Void] = []
+
+  /// Dart가 이 프로세스에서 setBackgroundHandler를 불렀다 = 메인 isolate의 `run` 처리기가 등록됐다.
+  /// 그때까지 쌓인 깨움을 `run` 한 번으로 처리한다.
+  static func dartRegistered(handle: Int) {
+    dartReady = true
+    guard !pending.isEmpty else { return }
+    let waiting = pending
+    pending = []
+    sendRun(handle: handle) { waiting.forEach { $0() } }
+  }
+
   private static func wake(done: @escaping () -> Void) {
     let defaults = RdcHealthSettings.defaults
     guard defaults.bool(forKey: RdcHealthSettings.enabled),
-          defaults.bool(forKey: RdcHealthSettings.active),
-          let handle = defaults.object(forKey: RdcHealthSettings.handlerHandle) as? Int
+          defaults.bool(forKey: RdcHealthSettings.active)
     else {
       done()
       return
     }
     DispatchQueue.main.async {
-      // 결정: 채널이 아직 없으면(엔진 준비 전) 이번 깨움은 건너뛴다. 다음 변경 때 다시 온다
-      guard let channel = backgroundChannel else {
-        done()
-        return
-      }
-      var finished = false  // 메인 스레드에서만 만진다
+      var finished = false
       let finish = {
         if !finished {
           finished = true
           done()
         }
       }
-      // 결정: 성공, 오류(handler_failed/no_handler/미등록) 어느 쪽이든 응답이 오면 끝난 것으로 본다
-      channel.invokeMethod("run", arguments: ["handlerHandle": handle]) { _ in finish() }
+      // 결정: 앱이 죽어 있다 백그라운드로 뜬 경우 Dart main()이 처리기를 등록하기 전에 깨움이 온다. 완료를 쥐고 있다 등록 시점에 한꺼번에 처리한다
+      if dartReady, let handle = defaults.object(forKey: RdcHealthSettings.handlerHandle) as? Int {
+        sendRun(handle: handle, then: finish)
+      } else {
+        pending.append(finish)
+      }
+      // 결정: HealthKit 완료는 25초 안에 반드시 부른다(Dart가 끝내 등록하지 않아도)
       DispatchQueue.main.asyncAfter(deadline: .now() + handlerTimeout) { finish() }
     }
+  }
+
+  private static func sendRun(handle: Int, then finish: @escaping () -> Void) {
+    guard let channel = backgroundChannel else {
+      finish()
+      return
+    }
+    // 결정: 성공, 오류(handler_failed/no_handler/미등록) 어느 쪽이든 응답이 오면 끝난 것으로 본다
+    channel.invokeMethod("run", arguments: ["handlerHandle": handle]) { _ in finish() }
   }
 }
