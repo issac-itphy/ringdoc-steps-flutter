@@ -117,7 +117,7 @@ dependencies {
 | `availability()` | 수집 가능 상태 하나(`available`, `needsInstall`, `unsupported`) |
 | `requestPermissions()` | 휴대폰 권한 요청. 허용되면 true |
 | `enable(String userId)` | 수집 스위치를 켜고 등록 |
-| `setActive(bool active)` | 로그아웃용. 기록만 멈추고 등록은 유지 |
+| `setActive(bool active)` | 로그아웃용. 기록만 멈추고 등록은 유지. 깨움 때 Dart 핸들러는 계속 실행되어 호스트가 판단함(iOS는 기록이 없어 플래그만 저장) |
 | `disable()` | 모든 등록을 풀고 네이티브 파일 삭제. 여러 번 불러도 안전 |
 | `moveSegments(from, to)` | 이동 구간 목록(5분, 50걸음 이상) |
 | `hourlySteps(from, to)` | 시간별 걸음 수 |

@@ -48,7 +48,7 @@ public class RdcHealthPlugin: NSObject, FlutterPlugin {
         result(Self.badArgs("active가 필요합니다"))
         return
       }
-      // 결정: 꺼도 관찰 쿼리는 그대로 두고, 깨움 때 핸들러 실행만 건너뛴다
+      // 결정: 플래그만 저장한다. iOS는 기록이 없고 깨움 때 핸들러도 계속 실행한다(Android가 이 값으로 기록을 건너뜀)
       defaults.set(active, forKey: RdcHealthSettings.active)
       result(nil)
 

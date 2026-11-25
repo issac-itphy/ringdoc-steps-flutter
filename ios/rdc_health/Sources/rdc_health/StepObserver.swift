@@ -66,9 +66,8 @@ enum StepObserver {
 
   private static func wake(done: @escaping () -> Void) {
     let defaults = RdcHealthSettings.defaults
-    guard defaults.bool(forKey: RdcHealthSettings.enabled),
-          defaults.bool(forKey: RdcHealthSettings.active)
-    else {
+    // 결정: active는 보지 않는다. setActive(false)는 기록만 멈추는 뜻이고 iOS엔 기록이 없다. 핸들러는 계속 돌아야 호스트가 판단(예: 로그아웃 14일 뒤 disable)할 수 있다
+    guard defaults.bool(forKey: RdcHealthSettings.enabled) else {
       done()
       return
     }
