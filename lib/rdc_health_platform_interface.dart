@@ -34,6 +34,13 @@ abstract class RdcHealthPlatform extends PlatformInterface {
     throw UnimplementedError('requestPermissions() has not been implemented.');
   }
 
+  /// 걸음을 읽을 OS 권한이 지금 허용돼 있는지 읽기만 한다(요청하지 않음). Android는 활동 인식 권한(API 28 이하는 설치 시 부여라 true)이고 Health Connect 권한은 포함하지 않는다. iOS는 HealthKit이 읽기 허용 여부를 알려주지 않아 null.
+  Future<bool?> stepPermissionGranted() {
+    throw UnimplementedError(
+      'stepPermissionGranted() has not been implemented.',
+    );
+  }
+
   /// 수집 스위치를 켜고 등록한다(iOS 관찰 쿼리와 백그라운드 전달, Android 활동 전환, Recording API 구독, Health Connect 변경 토큰, 주기 작업).
   Future<void> enable(String userId) {
     throw UnimplementedError('enable() has not been implemented.');

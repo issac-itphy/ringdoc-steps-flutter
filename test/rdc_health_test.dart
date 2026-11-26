@@ -17,6 +17,9 @@ class MockRdcHealthPlatform extends RdcHealthPlatform
   Future<bool> requestPermissions() async => true;
 
   @override
+  Future<bool?> stepPermissionGranted() async => null;
+
+  @override
   Future<void> enable(String userId) async => calls.add('enable:$userId');
 
   @override
@@ -47,7 +50,7 @@ void main() {
     expect(initialPlatform, isInstanceOf<MethodChannelRdcHealth>());
   });
 
-  test('RdcHealth는 8개 호출을 플랫폼으로 넘긴다', () async {
+  test('RdcHealth는 9개 호출을 플랫폼으로 넘긴다', () async {
     final fake = MockRdcHealthPlatform();
     RdcHealthPlatform.instance = fake;
     final health = RdcHealth();
@@ -55,6 +58,7 @@ void main() {
 
     expect(await health.availability(), HealthAvailability.needsInstall);
     expect(await health.requestPermissions(), isTrue);
+    expect(await health.stepPermissionGranted(), isNull);
     await health.enable('u1');
     await health.setActive(true);
     await health.disable();

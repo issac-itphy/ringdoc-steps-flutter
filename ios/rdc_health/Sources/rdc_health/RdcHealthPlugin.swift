@@ -32,6 +32,10 @@ public class RdcHealthPlugin: NSObject, FlutterPlugin {
     case "requestPermissions":
       requestPermissions(result)
 
+    case "stepPermissionGranted":
+      // 결정: HealthKit은 읽기 권한 허용 여부를 알려주지 않는다. null을 돌려주고 iOS 판단은 호스트 앱이 자기 규칙으로 한다
+      result(nil)
+
     case "enable":
       guard let userId = (call.arguments as? [String: Any])?["userId"] as? String else {
         result(Self.badArgs("userId가 필요합니다"))

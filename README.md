@@ -2,7 +2,7 @@
 
 링닥 비즈 앱이 휴대폰과 워치의 걸음 기록을 읽는 데 쓰는 Flutter 플러그인입니다. iOS는 HealthKit과 CoreMotion을, Android는 Health Connect를 사용합니다.
 
-시험 전용 API를 걷어내고 정식 API 8개로 바꾸는 중입니다(브랜치 `feature/g1-formalize`). Dart 쪽은 끝났고 iOS/Android 네이티브 구현은 이 브랜치에서 진행 중이라, 그 전에는 호출해도 동작하지 않습니다. 판정 규칙은 본 앱이 갖고 이 패키지는 걸음 데이터와 깨우기만 제공합니다.
+시험 전용 API를 걷어내고 정식 API 9개로 바꾸는 중입니다(브랜치 `feature/g1-formalize`). Dart 쪽은 끝났고 iOS/Android 네이티브 구현은 이 브랜치에서 진행 중이라, 그 전에는 호출해도 동작하지 않습니다. 판정 규칙은 본 앱이 갖고 이 패키지는 걸음 데이터와 깨우기만 제공합니다.
 
 ## 지원 환경
 
@@ -116,6 +116,7 @@ dependencies {
 |---|---|
 | `availability()` | 수집 가능 상태 하나(`available`, `needsInstall`, `unsupported`) |
 | `requestPermissions()` | 휴대폰 권한 요청. 허용되면 true |
+| `stepPermissionGranted()` | 걸음 읽기 권한이 허용돼 있는지 읽기만 함(`Future<bool?>`). Android는 활동 인식 허용 여부(Health Connect 제외), iOS는 알 수 없어 null이라 호스트 앱이 자기 규칙으로 판단 |
 | `enable(String userId)` | 수집 스위치를 켜고 등록 |
 | `setActive(bool active)` | 로그아웃용. 기록만 멈추고 등록은 유지. 깨움 때 Dart 핸들러는 계속 실행되어 호스트가 판단함(iOS는 기록이 없어 플래그만 저장) |
 | `disable()` | 모든 등록을 풀고 네이티브 파일 삭제. `setBackgroundHandler` 핸들은 남겨 같은 프로세스에서 다시 `enable()`해도 핸들러가 돕니다. 여러 번 불러도 안전 |

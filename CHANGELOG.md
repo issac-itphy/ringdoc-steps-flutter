@@ -1,6 +1,6 @@
 ## Unreleased
 
-- 시험 전용 API를 걷어내고 정식 API 8개로 교체(Dart 쪽). 네이티브는 G1b(iOS), G1c(Android)에서 구현
+- 시험 전용 API를 걷어내고 정식 API 9개로 교체(Dart 쪽). 네이티브는 G1b(iOS), G1c(Android)에서 구현
 
 ## 0.0.1
 

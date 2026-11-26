@@ -69,6 +69,8 @@ class RdcHealthPlugin :
         val c = context ?: return result.error("no_context", "플러그인이 엔진에 붙어 있지 않습니다", null)
         when (call.method) {
             "availability" -> result.success(availability(c))
+            // 결정: 읽기만 한다. 걸음 읽기에 실제로 필요한 활동 인식만 본다(API 28 이하는 gms 권한이 설치 시 부여라 true). Health Connect는 보조 신호라 제외
+            "stepPermissionGranted" -> result.success(activityRecognitionGranted(c))
             "requestPermissions" -> requestPermissions(c, result)
             "enable" -> {
                 val userId = call.argument<String>("userId") ?: return badArgs(result, "userId가 필요합니다")

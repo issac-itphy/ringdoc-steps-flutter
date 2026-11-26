@@ -17,12 +17,14 @@ void main() {
   final calls = <MethodCall>[];
   Object? availabilityReply = 'available';
   Object? permissionReply = true;
+  Object? stepPermissionReply = true;
   final t11 = t10.add(const Duration(hours: 1));
 
   setUp(() {
     calls.clear();
     availabilityReply = 'available';
     permissionReply = true;
+    stepPermissionReply = true;
     TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
         .setMockMethodCallHandler(channel, (call) async {
           calls.add(call);
@@ -31,6 +33,8 @@ void main() {
               return availabilityReply;
             case 'requestPermissions':
               return permissionReply;
+            case 'stepPermissionGranted':
+              return stepPermissionReply;
             case 'moveSegments':
               return [
                 {
@@ -70,6 +74,15 @@ void main() {
     expect(await platform.requestPermissions(), isTrue);
     permissionReply = null;
     expect(await platform.requestPermissions(), isFalse);
+  });
+
+  test('stepPermissionGranted는 true/false를 그대로, iOS의 null도 그대로 돌려준다', () async {
+    expect(await platform.stepPermissionGranted(), isTrue);
+    stepPermissionReply = false;
+    expect(await platform.stepPermissionGranted(), isFalse);
+    stepPermissionReply = null;
+    expect(await platform.stepPermissionGranted(), isNull);
+    expect(calls.map((c) => c.method), everyElement('stepPermissionGranted'));
   });
 
   test('enable, setActive, disable은 이름과 인자를 보낸다', () async {

@@ -13,6 +13,9 @@ class RdcHealth {
   Future<bool> requestPermissions() =>
       RdcHealthPlatform.instance.requestPermissions();
 
+  Future<bool?> stepPermissionGranted() =>
+      RdcHealthPlatform.instance.stepPermissionGranted();
+
   Future<void> enable(String userId) =>
       RdcHealthPlatform.instance.enable(userId);
 

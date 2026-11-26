@@ -28,6 +28,10 @@ class MethodChannelRdcHealth extends RdcHealthPlatform {
       await methodChannel.invokeMethod<bool>('requestPermissions') ?? false;
 
   @override
+  Future<bool?> stepPermissionGranted() =>
+      methodChannel.invokeMethod<bool>('stepPermissionGranted');
+
+  @override
   Future<void> enable(String userId) =>
       methodChannel.invokeMethod<void>('enable', {'userId': userId});
 
