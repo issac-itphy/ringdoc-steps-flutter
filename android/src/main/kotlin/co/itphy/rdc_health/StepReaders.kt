@@ -16,7 +16,14 @@ import java.util.concurrent.TimeUnit
 
 /** Recording API(Play 서비스가 폰 센서로 쌓는 걸음). 블로킹이라 IO 스레드에서 부른다. */
 internal object RecordingReader {
+    // 결정: Recording API는 10일치만 보관한다. 그 앞을 요청하면 실패할 수 있어 시작을 당긴다
+    private const val RETENTION_MS = 10L * 24 * 60 * 60 * 1000
+
+    fun clampFrom(from: Long, now: Long): Long = maxOf(from, now - RETENTION_MS)
+
     fun buckets(c: Context, from: Long, to: Long, size: Long, unit: TimeUnit): List<Bucket> {
+        val from = clampFrom(from, System.currentTimeMillis())
+        if (from >= to) return emptyList()
         val request = LocalDataReadRequest.Builder()
             .aggregate(LocalDataType.TYPE_STEP_COUNT_DELTA)
             .bucketByTime(size.toInt(), unit)

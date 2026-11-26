@@ -27,6 +27,8 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
 import java.time.ZoneId
 import java.util.concurrent.TimeUnit
@@ -55,7 +57,11 @@ class RdcHealthPlugin :
         val app = binding.applicationContext
         if (Store.enabled(app)) {
             WakeFlow.schedulePeriodic(app)
-            scope.launch(Dispatchers.IO) { Transitions.awaitQuietly { Transitions.register(app) } }
+            // 결정: Recording API 구독도 멱등이라 전환 등록과 같이 다시 건다(enable 때 한 번만 걸면 Play 서비스가 잃었을 때 복구 안 됨)
+            scope.launch(Dispatchers.IO) {
+                Transitions.awaitQuietly { Transitions.register(app) }
+                Transitions.awaitQuietly { Transitions.subscribe(app) }
+            }
         }
     }
 
@@ -66,13 +72,16 @@ class RdcHealthPlugin :
             "requestPermissions" -> requestPermissions(c, result)
             "enable" -> {
                 val userId = call.argument<String>("userId") ?: return badArgs(result, "userId가 필요합니다")
-                Store.enable(c, userId)
                 scope.launch {
-                    withContext(Dispatchers.IO) {
-                        Transitions.awaitQuietly { Transitions.register(c) }
-                        Transitions.awaitQuietly { Transitions.subscribe(c) }
+                    // 결정: enable과 disable은 한 뮤텍스로 직렬화하고, 등록 단계마다 enabled를 다시 본다. 늦게 끝난 enable이 disable 뒤에 등록을 되살리지 않게(프라이버시)
+                    lifecycle.withLock {
+                        Store.enable(c, userId)
+                        withContext(Dispatchers.IO) {
+                            if (Store.enabled(c)) Transitions.awaitQuietly { Transitions.register(c) }
+                            if (Store.enabled(c)) Transitions.awaitQuietly { Transitions.subscribe(c) }
+                        }
+                        if (Store.enabled(c)) WakeFlow.schedulePeriodic(c)
                     }
-                    WakeFlow.schedulePeriodic(c)
                     result.success(null)
                 }
             }
@@ -83,16 +92,18 @@ class RdcHealthPlugin :
                 result.success(null)
             }
             "disable" -> scope.launch {
-                // 결정: 각 해제 실패는 무시한다. 이미 꺼져 있어도 disable은 성공해야 한다(멱등)
-                withContext(Dispatchers.IO) {
-                    Transitions.awaitQuietly { Transitions.unregister(c) }
-                    Transitions.awaitQuietly { Transitions.unsubscribe(c) }
+                lifecycle.withLock {
+                    // 결정: 먼저 enabled를 내려 진행 중인 enable이 더 등록하지 못하게 한다. 각 해제 실패는 무시한다(멱등)
+                    Store.clearAll(c)
+                    withContext(Dispatchers.IO) {
+                        Transitions.awaitQuietly { Transitions.unregister(c) }
+                        Transitions.awaitQuietly { Transitions.unsubscribe(c) }
+                    }
+                    try {
+                        WakeFlow.cancelAll(c)
+                    } catch (_: Exception) {
+                    }
                 }
-                try {
-                    WakeFlow.cancelAll(c)
-                } catch (_: Exception) {
-                }
-                Store.clearAll(c)
                 result.success(null)
             }
             "setBackgroundHandler" -> {
@@ -146,7 +157,8 @@ class RdcHealthPlugin :
     }
 
     private fun hourlySteps(c: Context, from: Long, to: Long): List<Map<String, Any>> {
-        val hours = Segments.hourStarts(from, to, ZoneId.systemDefault())
+        // 결정: Recording API 보관은 10일이라 그 앞은 칸을 만들지 않는다(칸 없음 = 읽을 수 없는 범위)
+        val hours = Segments.hourStarts(RecordingReader.clampFrom(from, System.currentTimeMillis()), to, ZoneId.systemDefault())
         if (hours.isEmpty()) return emptyList()
         // 결정: Recording API 오류는 빈 목록으로 돌려준다(iOS와 같음. 0보와 "읽지 못함"을 호스트가 구분)
         // shortcut: 칸 기준이 읽기 시작 시각이라 정각으로 맞춰 읽는다. 일광절약 전환일의 25/23시간은 따로 다루지 않음
@@ -249,6 +261,7 @@ class RdcHealthPlugin :
     }
 
     private companion object {
+        val lifecycle = Mutex()
         const val REQUEST_ACTIVITY = 0x5254
         const val REQUEST_HEALTH = 0x5255
         const val BACKGROUND_READ = "android.permission.health.READ_HEALTH_DATA_IN_BACKGROUND"

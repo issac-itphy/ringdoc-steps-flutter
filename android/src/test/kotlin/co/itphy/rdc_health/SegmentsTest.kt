@@ -42,4 +42,11 @@ internal class SegmentsTest {
         val out = Segments.fillHours(hours, listOf(Bucket(hour, 2 * hour, 70)))
         assertEquals(listOf(0, 70, 0), out.map { it["steps"] })
     }
+
+    @Test
+    fun recording_clampFrom_limitsToTenDays() {
+        val day = 24 * 60 * min
+        assertEquals(90 * day, RecordingReader.clampFrom(0, 100 * day))
+        assertEquals(95 * day, RecordingReader.clampFrom(95 * day, 100 * day))
+    }
 }
