@@ -11,6 +11,7 @@ import androidx.work.PeriodicWorkRequestBuilder
 import androidx.work.WorkManager
 import androidx.work.WorkerParameters
 import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.sync.Mutex
 import java.util.concurrent.TimeUnit
 
 /** 주기 작업과 전환 직후 작업이 같이 쓴다. 항상 성공으로 끝나 재시도 폭주를 막는다. */
@@ -45,7 +46,20 @@ internal object WakeFlow {
         WorkManager.getInstance(c).cancelUniqueWork(WAKE)
     }
 
+    // 결정: 주기 작업과 전환 작업은 이름이 달라 동시에 돌 수 있다. 헤드리스 엔진 둘을 막으려고 프로세스 전체에서 하나만 돌린다
+    private val running = Mutex()
+
     suspend fun run(c: Context) {
+        // 결정: 이미 도는 쪽이 현재 데이터를 판단하므로 기다리지 않고 건너뛴다(성공으로 끝)
+        if (!running.tryLock()) return
+        try {
+            runLocked(c)
+        } finally {
+            running.unlock()
+        }
+    }
+
+    private suspend fun runLocked(c: Context) {
         if (!Store.enabled(c)) return
         // 결정: Dart 핸들러는 켜져 있으면 비활성이어도 부른다(호스트가 로그아웃 14일 뒤 disable 같은 판단을 함). 비활성이면 기록(합계 저장)만 멈춘다
         if (Store.active(c)) quietly { if (HealthConnectSteps.isAvailable(c)) HealthConnectSteps.recordTotal(c) }
