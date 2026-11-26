@@ -78,6 +78,10 @@ class BootReceiver : BroadcastReceiver() {
             Transitions.register(app)
         } catch (_: Exception) {
         }
+        try {
+            Transitions.subscribe(app)
+        } catch (_: Exception) {
+        }
         WakeFlow.schedulePeriodic(app)
     }
 }
