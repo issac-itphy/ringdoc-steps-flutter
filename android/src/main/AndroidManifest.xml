@@ -5,6 +5,8 @@
   <uses-sdk tools:overrideLibrary="androidx.health.connect.client" />
   <!-- 결정: 권한은 패키지 매니페스트에 둬서 앱 매니페스트로 병합. 읽기만 쓴다 -->
   <uses-permission android:name="android.permission.ACTIVITY_RECOGNITION" />
+  <!-- 결정: Recording API는 API 24~28에서 Play 서비스 전용 권한이 필요하다(29 이상은 위 런타임 권한) -->
+  <uses-permission android:name="com.google.android.gms.permission.ACTIVITY_RECOGNITION" android:maxSdkVersion="28" />
   <uses-permission android:name="android.permission.health.READ_STEPS" />
   <uses-permission android:name="android.permission.health.READ_HEALTH_DATA_IN_BACKGROUND" />
   <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
