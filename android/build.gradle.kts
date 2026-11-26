@@ -80,6 +80,8 @@ dependencies {
     coreLibraryDesugaring("com.android.tools:desugar_jdk_libs:2.1.4")
     implementation("androidx.health.connect:connect-client:1.1.0")
     implementation("androidx.work:work-runtime-ktx:2.12.0")
+    // 앱이 화면에 있는지(ProcessLifecycleOwner) 확인해 헤드리스 실행을 건너뛴다
+    implementation("androidx.lifecycle:lifecycle-process:2.9.4")
     // Recording API(걸음 구독/읽기), 활동 전환 API
     implementation("com.google.android.gms:play-services-fitness:21.3.0")
     implementation("com.google.android.gms:play-services-location:21.3.0")

@@ -1,6 +1,9 @@
 package co.itphy.rdc_health
 
 import android.content.Context
+import android.util.Log
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.ProcessLifecycleOwner
 import io.flutter.FlutterInjector
 import io.flutter.embedding.engine.FlutterEngine
 import io.flutter.embedding.engine.dart.DartExecutor
@@ -17,6 +20,12 @@ internal object BackgroundRunner {
     private const val TIMEOUT_MS = 60_000L
 
     suspend fun run(c: Context, dispatcher: Long, handler: Long) = withContext(Dispatchers.Main) {
+        // 결정: 앱 화면이 떠 있으면 호스트가 스스로 다시 계획하므로 헤드리스 실행을 건너뛴다(같은 상태 파일을 두 isolate가 덮어쓰는 것 방지).
+        // WakeFlow.run을 거치는 모든 진입(전환 작업, 주기 작업, 신속 작업)이 여기로 모인다. 메인 스레드에서 읽는다. 프로세스 전체 기준이라 Activity 없이 Worker만 뜬 경우는 STARTED가 아니어서 정상 실행된다
+        if (ProcessLifecycleOwner.get().lifecycle.currentState.isAtLeast(Lifecycle.State.STARTED)) {
+            Log.d("RdcHealth", "앱이 포그라운드라 헤드리스 실행을 건너뜀")
+            return@withContext
+        }
         val loader = FlutterInjector.instance().flutterLoader()
         loader.startInitialization(c)
         loader.ensureInitializationComplete(c, null)
