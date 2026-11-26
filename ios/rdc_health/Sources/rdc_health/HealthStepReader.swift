@@ -35,6 +35,8 @@ final class HealthStepReader {
       }
       var rows: [(start: Date, end: Date, steps: Int)] = []
       collection?.enumerateStatistics(from: from, to: to) { stats, _ in
+        // 결정: enumerate가 to 이후에 시작하는 칸을 하나 더 줄 수 있어 to 전에 시작하는 칸만 쓴다
+        guard stats.startDate < to else { return }
         rows.append((stats.startDate, stats.endDate, Int(stats.sumQuantity()?.doubleValue(for: .count()) ?? 0)))
       }
       completion(.success(rows))
