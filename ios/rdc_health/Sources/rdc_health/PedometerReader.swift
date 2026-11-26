@@ -29,6 +29,10 @@ final class PedometerReader {
     }
   }
 
+  static func clampFrom(_ from: Date, now: Date) -> Date {
+    max(from, now.addingTimeInterval(-7 * 24 * 60 * 60))
+  }
+
   /// [from, to)를 size초 칸으로 나눠 차례로 조회한다. 칸은 에포크 기준으로 맞추고 마지막 칸은 to에서 자른다.
   /// 칸에 기록이 없어 오류가 나면 0보로 둔다. 센서가 없거나 권한이 없으면 빈 목록.
   func buckets(
@@ -36,6 +40,12 @@ final class PedometerReader {
     completion: @escaping ([(start: Date, end: Date, steps: Int)]) -> Void
   ) {
     guard Self.isAvailable, Self.isPermitted, size > 0 else {
+      completion([])
+      return
+    }
+    // 결정: CMPedometer는 7일치만 보관한다. 시작을 당기고, 남는 범위가 없으면 빈 목록
+    let from = Self.clampFrom(from, now: Date())
+    guard from < to else {
       completion([])
       return
     }
