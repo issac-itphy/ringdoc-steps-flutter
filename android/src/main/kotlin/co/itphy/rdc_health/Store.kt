@@ -37,7 +37,11 @@ internal object Store {
 
     fun clearAll(c: Context) {
         synchronized(this) {
-            prefs(c).edit().clear().apply()
+            // 결정: Dart 핸들 두 키는 수집 상태가 아니라 호스트 설정이라 남긴다. 지우면 같은 프로세스의 disable 후 enable에서 핸들러가 안 돈다
+            val p = prefs(c)
+            val e = p.edit()
+            for (key in p.all.keys) if (key != DISPATCHER && key != HANDLER) e.remove(key)
+            e.apply()
             File(c.filesDir, TRANSITIONS).delete()
             File(c.filesDir, TOTALS).delete()
         }
