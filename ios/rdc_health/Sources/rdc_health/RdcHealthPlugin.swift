@@ -10,8 +10,11 @@ public class RdcHealthPlugin: NSObject, FlutterPlugin {
   public static func register(with registrar: FlutterPluginRegistrar) {
     let channel = FlutterMethodChannel(name: "rdc_health", binaryMessenger: registrar.messenger())
     registrar.addMethodCallDelegate(RdcHealthPlugin(), channel: channel)
-    StepObserver.backgroundChannel = FlutterMethodChannel(
-      name: "rdc_health/background", binaryMessenger: registrar.messenger())
+    // 결정: 먼저 등록된 엔진의 채널을 지킨다. 나중 엔진(예: 다른 헤드리스 엔진)이 덮어쓰면 깨움이 엉뚱한 엔진으로 간다
+    if StepObserver.backgroundChannel == nil {
+      StepObserver.backgroundChannel = FlutterMethodChannel(
+        name: "rdc_health/background", binaryMessenger: registrar.messenger())
+    }
   }
 
   /// 호스트 앱 AppDelegate의 didFinishLaunching 첫 줄에서 부른다.
@@ -38,8 +41,7 @@ public class RdcHealthPlugin: NSObject, FlutterPlugin {
       defaults.set(true, forKey: RdcHealthSettings.active)
       defaults.set(userId, forKey: RdcHealthSettings.userId)
       StepObserver.start()
-      let reader = HealthStepReader.shared
-      reader.store.enableBackgroundDelivery(for: reader.stepType, frequency: .hourly) { _, error in
+      StepObserver.ensureBackgroundDelivery { error in
         Self.reply(result, error.map { Result<Any?, Error>.failure($0) } ?? .success(nil))
       }
 

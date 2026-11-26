@@ -14,7 +14,8 @@ enum RdcHealthSettings {
   static var defaults: UserDefaults { .standard }
 
   static func clearAll() {
-    for key in defaults.dictionaryRepresentation().keys where key.hasPrefix(prefix) {
+    // 결정: Dart 핸들 두 키는 수집 상태가 아니라 호스트 설정이라 남긴다. 지우면 같은 프로세스의 disable 후 enable에서 깨움이 핸들러 없이 25초 대기한다
+    for key in defaults.dictionaryRepresentation().keys where key.hasPrefix(prefix) && key != dispatcherHandle && key != handlerHandle {
       defaults.removeObject(forKey: key)
     }
   }
@@ -31,7 +32,15 @@ enum StepObserver {
   private static var query: HKObserverQuery?
 
   static func startIfEnabled() {
-    if RdcHealthSettings.defaults.bool(forKey: RdcHealthSettings.enabled) { start() }
+    guard RdcHealthSettings.defaults.bool(forKey: RdcHealthSettings.enabled) else { return }
+    start()
+    // 결정: 앱 시작마다 백그라운드 전달도 다시 켠다(멱등). enable 때 한 번 실패하면 영영 안 켜지는 것을 막는다
+    ensureBackgroundDelivery { _ in }
+  }
+
+  static func ensureBackgroundDelivery(_ completion: @escaping (Error?) -> Void) {
+    let reader = HealthStepReader.shared
+    reader.store.enableBackgroundDelivery(for: reader.stepType, frequency: .hourly) { _, error in completion(error) }
   }
 
   static func start() {
